@@ -7,7 +7,6 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
-	"os"
 )
 
 func main() {
@@ -17,25 +16,25 @@ func main() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
-	host, err := getEnvVar(w, "REDMINE_HOST")
+
+	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+	payload := new(HookPayload)
+	err = json.Unmarshal(data, payload)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
 
-	authToken, err := getEnvVar(w, "REDMINE_API_KEY")
-	if err != nil {
+	settings, errorResponse := NewSettings()
+	if errorResponse != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errorResponse)
 		return
 	}
-
-	rtbStatus, err := getEnvVar(w, "STAMP_READY_TO_BUILD_STATUS")
-	if err != nil {
-		return
-	}
-
-	// nextStatus, err := getEnvVar(w, "STAMP_DONE_STATUS")
-	// if err != nil {
-	// 	return
-	// }
 
 	redmineProject := r.Header.Get("REDMINE_PROJECT")
 	if len(redmineProject) == 0 {
@@ -46,7 +45,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	issues, err := issues(host, rtbStatus, redmineProject, authToken)
+	issues, err := issues(settings, redmineProject)
 	if err != nil {
 		errJSON := new(HookErrorResponse)
 		errJSON.Message = fmt.Sprintf("Wrong error from server: %s", err)
@@ -54,80 +53,75 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
-	var issuesID []int
+
 	for _, issue := range issues.Issues {
-		issuesID = append(issuesID, issue.ID)
+		err = markAsDone(issue, settings, payload.BuildNumber)
+		if err != nil {
+			errJSON := new(HookErrorResponse)
+			errJSON.Message = fmt.Sprintf("Wrong error from server: %s", err)
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errJSON)
+		}
 	}
-	fmt.Fprintf(w, "%#v", issuesID)
 }
 
-func getEnvVar(w http.ResponseWriter, key string) (string, error) {
-	authToken := os.Getenv(key)
-	if len(authToken) == 0 {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = key + " ENV variable is not set"
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errJSON)
-		return "", errJSON
+func markAsDone(issue *Issue, settings *Settings, buildNumber int) error {
+	type PayloadCustomField struct {
+		ID    int64  `json:"id"`
+		Value string `json:"value"`
 	}
-	return authToken, nil
-}
 
-func markAsDone(issue *Issue, host string, nextStatus string, token string) (*Issue, error) {
+	type PayloadIssue struct {
+		AssignedToId string                `json:"assigned_to_id"`
+		StatusId     string                `json:"status_id"`
+		CustomFields []*PayloadCustomField `json:"custom_fields"`
+	}
 
 	type Payload struct {
-		Issue struct {
-			assignedToId string `json:"assigned_to_id"`
-			statusId     string `json:"status_id"`
-		} `json:"issue"`
+		Issue *PayloadIssue `json:"issue"`
 	}
 
-	requestBody := Payload{}
+	requestBody := Payload{
+		Issue: &PayloadIssue{
+			AssignedToId: fmt.Sprintf("%d", issue.Author.ID),
+			StatusId:     settings.doneStatus,
+			CustomFields: []*PayloadCustomField{
+				{settings.buildFieldID, fmt.Sprintf("%d", buildNumber)},
+			},
+		},
+	}
 
 	body, err := json.Marshal(requestBody)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	buffer := bytes.NewBuffer(body)
-	// assignee=$(http GET "$REDMINE_HOST/issues/$issue_id.json" "X-Redmine-API-Key":"$REDMINE_API_KEY" | jq '.issue.author.id')
-	// echo "{ \"issue\": { \"assigned_to_id\": $assignee, \"status_id\": $next_status_id, \"custom_fields\": [{\"id\": 32, \"value\": \"$build_number\" }] }}" |
-	//     http PUT "$REDMINE_HOST/issues/$issue_id.json" "X-Redmine-API-Key":"$REDMINE_API_KEY" >/dev/null
 
-	request, err := http.NewRequest("PUT", host+fmt.Sprintf("/issues/%d.json", id), buffer)
+	request, err := http.NewRequest("PUT", settings.host+fmt.Sprintf("/issues/%d.json", issue.ID), buffer)
 	if err != nil {
-		return nil, err
+		return err
 	}
-	request.Header.Set("X-Redmine-API-Key", token)
+	request.Header.Set("X-Redmine-API-Key", settings.authToken)
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := http.DefaultClient.Do(request)
 	if err != nil {
-		return nil, err
+		return err
 	}
 	defer response.Body.Close()
 	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("Received wrong status code %d", response.StatusCode)
+		return fmt.Errorf("Received wrong status code %d", response.StatusCode)
 	}
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	result := new(Issue)
-	err = json.Unmarshal(data, result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
+	return nil
 }
 
-func issues(host string, status string, project string, token string) (*IssuesList, error) {
-	request, err := http.NewRequest("GET", host+"/issues.json?status_id="+status+"&project_id="+project, nil)
+func issues(settings *Settings, project string) (*IssuesList, error) {
+	request, err := http.NewRequest("GET", settings.host+"/issues.json?status_id="+settings.rtbStatus+"&project_id="+project, nil)
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("X-Redmine-API-Key", token)
+	request.Header.Set("X-Redmine-API-Key", settings.authToken)
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := http.DefaultClient.Do(request)
@@ -179,6 +173,10 @@ type IssuesList struct {
 	TotalCount int      `json:"total_count"`
 	Limit      int      `json:"limit"`
 	Offset     int      `json:"offset"`
+}
+
+type IssueContainer struct {
+	Issue *Issue `json:"issue"`
 }
 
 type Issue struct {

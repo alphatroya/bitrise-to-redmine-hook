@@ -7,11 +7,16 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
 	http.HandleFunc("/bitrise", handler)
-	log.Fatal(http.ListenAndServe(":8081", nil))
+	port := os.Getenv("PORT")
+	if len(port) == 0 {
+		port = "8080"
+	}
+	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {

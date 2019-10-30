@@ -11,7 +11,7 @@ import (
 
 func main() {
 	http.HandleFunc("/bitrise", handler)
-	log.Fatal(http.ListenAndServe(":443", nil))
+	log.Fatal(http.ListenAndServe(":80", nil))
 }
 
 func handler(w http.ResponseWriter, r *http.Request) {

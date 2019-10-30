@@ -24,13 +24,19 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		errJSON := new(HookErrorResponse)
+		errJSON.Message = "Received wrong request data payload"
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
 	payload := new(HookPayload)
 	err = json.Unmarshal(data, payload)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		errJSON := new(HookErrorResponse)
+		errJSON.Message = "Can't decode request payload json data"
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
 

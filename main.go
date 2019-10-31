@@ -43,6 +43,10 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if payload.BuildStatus != 0 {
+		return
+	}
+
 	settings, errorResponse := NewSettings()
 	if errorResponse != nil {
 		w.WriteHeader(http.StatusInternalServerError)

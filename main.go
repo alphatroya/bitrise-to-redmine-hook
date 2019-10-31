@@ -70,14 +70,16 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	response := NewResponse("Successful completed task")
 	for _, issue := range issues.Issues {
 		err = markAsDone(issue, settings, payload.BuildNumber)
 		if err != nil {
-			errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errJSON)
+			response.Failures = append(response.Failures, issue.ID)
+			continue
 		}
+		response.Success = append(response.Success, issue.ID)
 	}
+	json.NewEncoder(w).Encode(response)
 }
 
 func markAsDone(issue *Issue, settings *Settings, buildNumber int) error {

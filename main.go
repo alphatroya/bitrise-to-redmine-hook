@@ -42,7 +42,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.BuildStatus != 0 {
+	if payload.BuildStatus != 1 {
 		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not success"))
 		return
 	}

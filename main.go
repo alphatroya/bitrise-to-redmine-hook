@@ -21,6 +21,9 @@ func main() {
 
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+	if r.Header.Get("Bitrise-Event-Type") != "build/finished" {
+		return
+	}
 
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {

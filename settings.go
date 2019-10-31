@@ -55,8 +55,7 @@ func NewSettings() (*Settings, *HookErrorResponse) {
 func getEnvVar(key string) (string, *HookErrorResponse) {
 	authToken := os.Getenv(key)
 	if len(authToken) == 0 {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = key + " ENV variable is not set"
+		errJSON := NewErrorResponse(key + " ENV variable is not set")
 		return "", errJSON
 	}
 	return authToken, nil

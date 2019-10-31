@@ -22,13 +22,13 @@ func main() {
 func handler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Bitrise-Event-Type") != "build/finished" {
+		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not finished"))
 		return
 	}
 
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = "Received wrong request data payload"
+		errJSON := NewErrorResponse("Received wrong request data payload")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errJSON)
 		return
@@ -36,14 +36,14 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	payload := new(HookPayload)
 	err = json.Unmarshal(data, payload)
 	if err != nil {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = "Can't decode request payload json data"
+		errJSON := NewErrorResponse("Can't decode request payload json data")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
 
 	if payload.BuildStatus != 0 {
+		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not success"))
 		return
 	}
 
@@ -56,8 +56,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	redmineProject := r.Header.Get("REDMINE_PROJECT")
 	if len(redmineProject) == 0 {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = "REDMINE_PROJECT header is not set"
+		errJSON := NewErrorResponse("REDMINE_PROJECT header is not set")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errJSON)
 		return
@@ -65,8 +64,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 
 	issues, err := issues(settings, redmineProject)
 	if err != nil {
-		errJSON := new(HookErrorResponse)
-		errJSON.Message = fmt.Sprintf("Wrong error from server: %s", err)
+		errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(errJSON)
 		return
@@ -75,8 +73,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 	for _, issue := range issues.Issues {
 		err = markAsDone(issue, settings, payload.BuildNumber)
 		if err != nil {
-			errJSON := new(HookErrorResponse)
-			errJSON.Message = fmt.Sprintf("Wrong error from server: %s", err)
+			errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
 			w.WriteHeader(http.StatusBadRequest)
 			json.NewEncoder(w).Encode(errJSON)
 		}
@@ -161,14 +158,6 @@ func issues(settings *Settings, project string) (*IssuesList, error) {
 	}
 
 	return result, nil
-}
-
-type HookErrorResponse struct {
-	Message string `json:"message"`
-}
-
-func (h *HookErrorResponse) Error() string {
-	return h.Message
 }
 
 type HookPayload struct {

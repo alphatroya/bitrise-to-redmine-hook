@@ -14,6 +14,13 @@ After deploying you need to specify the following ENV items:
 - `STAMP_DONE_STATUS`: ID of the done status
 - `STAMP_READY_TO_BUILD_STATUS`: ID of the "Ready to the build" status
 
+For optional Mailgun integration you should set also next items:
+
+- `MAILGUN_API`: API key for Mailgun service
+- `MAILGUN_DOMAIN`: domain address
+- `MAILGUN_RECIPIENT`: a recipient for emails
+- `MAILGUN_SENDER`: a sender for emails
+
 ## Bitrise configuration
 
 - Add a new Outgoing Webhooks in the Bitrise Code tab.

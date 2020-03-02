@@ -84,6 +84,8 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		}
 		response.Success = append(response.Success, issue.ID)
 	}
+	_ = sendMailgunNotification(response, settings.host)
+
 	json.NewEncoder(w).Encode(response)
 }
 

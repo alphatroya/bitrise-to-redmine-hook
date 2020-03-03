@@ -11,6 +11,11 @@ import (
 )
 
 func sendMailgunNotification(response *HookResponse, redmineHost string) error {
+
+	if len(response.Success) == 0 && len(response.Failures) == 0 {
+		return errors.New("response object not contain neither success or failures")
+	}
+
 	token := os.Getenv("MAILGUN_API")
 	domain := os.Getenv("MAILGUN_DOMAIN")
 	rec := os.Getenv("MAILGUN_RECIPIENT")
@@ -23,13 +28,17 @@ func sendMailgunNotification(response *HookResponse, redmineHost string) error {
 
 	subject := "Redmine Hooks Results"
 	var body string
-	body += "Success:\n"
-	for _, success := range response.Success {
-		body += redmineHost + "/issues/" + fmt.Sprintf("%d", success) + "\n"
+	if len(response.Success) != 0 {
+		body += "Success:\n"
+		for _, success := range response.Success {
+			body += redmineHost + "/issues/" + fmt.Sprintf("%d", success) + "\n"
+		}
 	}
-	body += "Failures:\n"
-	for _, failure := range response.Failures {
-		body += redmineHost + "/issues/" + fmt.Sprintf("%d", failure) + "\n"
+	if len(response.Failures) != 0 {
+		body += "Failures:\n"
+		for _, failure := range response.Failures {
+			body += redmineHost + "/issues/" + fmt.Sprintf("%d", failure) + "\n"
+		}
 	}
 
 	message := mg.NewMessage(sender, subject, body, rec)

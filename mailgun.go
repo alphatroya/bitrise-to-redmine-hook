@@ -10,7 +10,7 @@ import (
 	"github.com/mailgun/mailgun-go/v4"
 )
 
-func sendMailgunNotification(response *HookResponse, redmineHost string) error {
+func sendMailgunNotification(response *HookResponse, redmineHost string, buildNumber int, issues []*Issue) error {
 
 	if len(response.Success) == 0 && len(response.Failures) == 0 {
 		return errors.New("response object not contain neither success or failures")
@@ -27,7 +27,10 @@ func sendMailgunNotification(response *HookResponse, redmineHost string) error {
 	mg := mailgun.NewMailgun(domain, token)
 
 	subject := "Redmine Hooks Results"
-	var body string
+	if len(issues) != 0 {
+		subject += fmt.Sprintf(" (%s)", issues[0].Project.Name)
+	}
+	body := fmt.Sprintf("Build number: %d\n", buildNumber)
 	if len(response.Success) != 0 {
 		body += "Success:\n"
 		for _, success := range response.Success {

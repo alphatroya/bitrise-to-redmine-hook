@@ -22,6 +22,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
+
 	payload := new(HookPayload)
 	err = json.Unmarshal(data, payload)
 	if err != nil {

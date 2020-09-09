@@ -21,7 +21,7 @@ func TestResponseHeaders(t *testing.T) {
 func TestRequestHeaders(t *testing.T) {
 	cases := []struct {
 		requestHeaders     map[string]string
-		requestBody        io.ReadCloser
+		requestBody        io.Reader
 		responseStatusCode int
 		responseMessage    string
 	}{
@@ -41,11 +41,34 @@ func TestRequestHeaders(t *testing.T) {
 			http.StatusBadRequest,
 			"Received wrong request data payload",
 		},
+		{
+			map[string]string{
+				"Bitrise-Event-Type": "build/finished",
+			},
+			newMockBody(``),
+			http.StatusBadRequest,
+			"Can't decode request payload json data",
+		},
+		{
+			map[string]string{
+				"Bitrise-Event-Type": "build/finished",
+			},
+			newMockBody(`{"build_triggered_workflow":"external", "build_status":1, "build_number":12}`),
+			http.StatusOK,
+			"Skipping done transition: build workflow is not internal",
+		},
+		{
+			map[string]string{
+				"Bitrise-Event-Type": "build/finished",
+			},
+			newMockBody(`{"build_triggered_workflow":"internal", "build_status":0, "build_number":12}`),
+			http.StatusOK,
+			"Skipping done transition: build status is not success",
+		},
 	}
 
 	for i, mock := range cases {
-		req, _ := http.NewRequest(http.MethodGet, "", nil)
-		req.Body = mock.requestBody
+		req, _ := http.NewRequest(http.MethodGet, "", mock.requestBody)
 		for key, value := range mock.requestHeaders {
 			req.Header.Set(key, value)
 		}
@@ -72,6 +95,17 @@ func (b badBody) Read(p []byte) (n int, err error) {
 	return 0, bytes.ErrTooLarge
 }
 
-func (b badBody) Close() error {
-	return nil
+type mockBody struct {
+	p string
+}
+
+func newMockBody(p string) mockBody {
+	return mockBody{p}
+}
+
+func (m mockBody) Read(p []byte) (n int, err error) {
+	for i, b := range []byte(m.p) {
+		p[i] = b
+	}
+	return len(m.p), io.EOF
 }

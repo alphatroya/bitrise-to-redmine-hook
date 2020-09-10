@@ -7,7 +7,7 @@ import (
 )
 
 func main() {
-	http.HandleFunc("/bitrise", handler)
+	http.Handle("/bitrise", &Handler{&EnvSettingsBuilder{}})
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = "8080"

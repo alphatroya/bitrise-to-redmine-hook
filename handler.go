@@ -8,7 +8,11 @@ import (
 	"net/http"
 )
 
-func handler(w http.ResponseWriter, r *http.Request) {
+type Handler struct {
+	settingsBuilder SettingsBuilder
+}
+
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	if r.Header.Get("Bitrise-Event-Type") != "build/finished" {
 		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not finished"))
@@ -42,7 +46,7 @@ func handler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, errorResponse := NewSettings()
+	settings, errorResponse := h.settingsBuilder.build()
 	if errorResponse != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(errorResponse)

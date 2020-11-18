@@ -32,7 +32,7 @@ func sendMailgunNotification(response *HookResponse, redmineHost string, buildNu
 	}
 	body := fmt.Sprintf("Build number: %d\n", buildNumber)
 	if len(response.Success) != 0 {
-		body += "Success:\n"
+		body += fmt.Sprintf("Success(%d):\n", len(response.Success))
 		for _, success := range response.Success {
 			body += redmineHost + "/issues/" + fmt.Sprintf("%d", success) + "\n"
 		}

@@ -10,7 +10,7 @@ import (
 	"github.com/mailgun/mailgun-go/v4"
 )
 
-func sendMailgunNotification(response *HookResponse, redmineHost string, buildNumber int, issues []*Issue) error {
+func sendMailgunNotification(response *HookResponse, redmineHost string, buildNumber int, issues []*Issue, version string) error {
 
 	if len(response.Success) == 0 && len(response.Failures) == 0 {
 		return errors.New("response object not contain neither success or failures")
@@ -44,6 +44,7 @@ func sendMailgunNotification(response *HookResponse, redmineHost string, buildNu
 		}
 	}
 
+	body += version + "\n"
 	message := mg.NewMessage(sender, subject, body, rec)
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)

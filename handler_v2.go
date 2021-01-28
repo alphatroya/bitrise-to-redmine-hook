@@ -73,6 +73,7 @@ func (t *HandlerV2) handleTriggeredEvent(w http.ResponseWriter, r *http.Request)
 
 	data, err := json.Marshal(issues)
 	t.rdb.Set(payload.BuildSlug, data, time.Hour)
+	json.NewEncoder(w).Encode(HookResponse{"Caching issue data was succeed", []int{}, []int{}})
 }
 
 func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {

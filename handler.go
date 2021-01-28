@@ -69,7 +69,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	response := batchTransaction(RedmineDoneMarker{}, issues, settings, payload.BuildNumber)
-	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issues.Issues)
+	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issues.Issues, "v1")
 
 	json.NewEncoder(w).Encode(response)
 }

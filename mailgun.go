@@ -44,6 +44,7 @@ func sendMailgunNotification(response *HookResponse, redmineHost string, buildNu
 		}
 	}
 
+	body += "\n"
 	body += version + "\n"
 	message := mg.NewMessage(sender, subject, body, rec)
 

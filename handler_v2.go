@@ -78,7 +78,13 @@ func (t *HandlerV2) handleTriggeredEvent(w http.ResponseWriter, r *http.Request)
 		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
-	t.rdb.Set(payload.BuildSlug, data, 4*time.Hour)
+	err = t.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
+	if err != nil {
+		errJSON := NewErrorResponse(fmt.Sprintf("Can't write new cache with build: %+v\nerror: %s", payload, err))
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errJSON)
+		return
+	}
 
 	logItems := []int{}
 	for _, issue := range issues.Issues {

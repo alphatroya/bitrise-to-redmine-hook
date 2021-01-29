@@ -12,7 +12,6 @@ import (
 
 type HandlerV2 struct {
 	settingsBuilder SettingsBuilder
-	handlerV1       *Handler
 	rdb             *redis.Client
 }
 
@@ -22,7 +21,7 @@ func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) *HandlerV2 {
 		Password: "",
 		DB:       0,
 	})
-	return &HandlerV2{settingsBuilder, &Handler{settingsBuilder}, rdb}
+	return &HandlerV2{settingsBuilder, rdb}
 }
 
 func (t *HandlerV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -71,9 +70,21 @@ func (t *HandlerV2) handleTriggeredEvent(w http.ResponseWriter, r *http.Request)
 		return
 	}
 
+	// TODO: we don't need Mashal here, just use Request body here
 	data, err := json.Marshal(issues)
-	t.rdb.Set(payload.BuildSlug, data, time.Hour)
-	json.NewEncoder(w).Encode(HookResponse{"Caching issue data was succeed", []int{}, []int{}})
+	if err != nil {
+		errJSON := NewErrorResponse(fmt.Sprintf("Can't serialize data to string: %s", err))
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(errJSON)
+		return
+	}
+	t.rdb.Set(payload.BuildSlug, data, 4*time.Hour)
+
+	logItems := []int{}
+	for _, issue := range issues.Issues {
+		logItems = append(logItems, issue.ID)
+	}
+	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
 }
 
 func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
@@ -84,9 +95,11 @@ func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	cached, err := t.rdb.Get(payload.BuildSlug).Result()
-	if err != nil {
-		t.handlerV1.ServeHTTP(w, r)
+	redmineProject := r.Header.Get("REDMINE_PROJECT")
+	if len(redmineProject) == 0 {
+		errJSON := NewErrorResponse("REDMINE_PROJECT header is not set")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
 
@@ -107,10 +120,26 @@ func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	issues := new(IssuesList)
-	json.Unmarshal([]byte(cached), issues)
-	response := batchTransaction(RedmineDoneMarker{}, issues, settings, payload.BuildNumber)
-	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issues.Issues, "v2")
+	cached, err := t.rdb.Get(payload.BuildSlug).Result()
+	var issuesList *IssuesList
+	var cacheType string
+	if err != nil {
+		cacheType = "not cached"
+		issuesList, err = issues(settings, redmineProject)
+		if err != nil {
+			errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
+			w.WriteHeader(http.StatusBadRequest)
+			json.NewEncoder(w).Encode(errJSON)
+			return
+		}
+	} else {
+		cacheType = "cached"
+		issuesList = new(IssuesList)
+		json.Unmarshal([]byte(cached), issuesList)
+	}
+
+	response := batchTransaction(RedmineDoneMarker{}, issuesList, settings, payload.BuildNumber)
+	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issuesList.Issues, "v2 "+cacheType)
 
 	json.NewEncoder(w).Encode(response)
 }

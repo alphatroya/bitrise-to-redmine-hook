@@ -15,13 +15,14 @@ type HandlerV2 struct {
 	rdb             *redis.Client
 }
 
-func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) *HandlerV2 {
-	rdb := redis.NewClient(&redis.Options{
-		Addr:     redisUrl,
-		Password: "",
-		DB:       0,
-	})
-	return &HandlerV2{settingsBuilder, rdb}
+func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) (*HandlerV2, error) {
+	options, err := redis.ParseURL(redisUrl)
+	rdb := redis.NewClient(options)
+	_, err = rdb.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
+	return &HandlerV2{settingsBuilder, rdb}, nil
 }
 
 func (t *HandlerV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {

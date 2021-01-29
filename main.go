@@ -16,7 +16,11 @@ func main() {
 		log.Fatalf("%s should be set", redisURLEnvKey)
 	}
 	http.Handle("/bitrise", &Handler{&EnvSettingsBuilder{}})
-	http.Handle("/bitrise/v2", NewHandlerV2(&EnvSettingsBuilder{}, redis))
+	v2, err := NewHandlerV2(&EnvSettingsBuilder{}, redis)
+	if err != nil {
+		log.Fatalf("failed to create v2 handler")
+	}
+	http.Handle("/bitrise/v2", v2)
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = "8080"

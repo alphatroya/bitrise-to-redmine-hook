@@ -17,6 +17,9 @@ type HandlerV2 struct {
 
 func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) (*HandlerV2, error) {
 	options, err := redis.ParseURL(redisUrl)
+	if err != nil {
+		return nil, err
+	}
 	rdb := redis.NewClient(options)
 	_, err = rdb.Ping().Result()
 	if err != nil {
@@ -129,9 +132,8 @@ func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) 
 
 	cached, err := t.rdb.Get(payload.BuildSlug).Result()
 	var issuesList *IssuesList
-	var cacheType string
+	version := "v2"
 	if err != nil {
-		cacheType = "not cached"
 		issuesList, err = issues(settings, redmineProject)
 		if err != nil {
 			errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
@@ -140,13 +142,13 @@ func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) 
 			return
 		}
 	} else {
-		cacheType = "cached"
+		version += " cached"
 		issuesList = new(IssuesList)
 		json.Unmarshal([]byte(cached), issuesList)
 	}
 
 	response := batchTransaction(RedmineDoneMarker{}, issuesList, settings, payload.BuildNumber)
-	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issuesList.Issues, "v2 "+cacheType)
+	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issuesList.Issues, version)
 
 	json.NewEncoder(w).Encode(response)
 }

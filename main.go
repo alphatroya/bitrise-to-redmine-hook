@@ -16,7 +16,7 @@ func main() {
 		log.Fatalf("%s should be set", redisURLEnvKey)
 	}
 	http.Handle("/bitrise", &Handler{&EnvSettingsBuilder{}})
-	v2, err := NewHandlerV2(&EnvSettingsBuilder{}, redis)
+	v2, err := NewStamper(&EnvSettingsBuilder{}, redis)
 	if err != nil {
 		log.Fatalf("failed to create v2 handler")
 	}

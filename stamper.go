@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -10,12 +11,13 @@ import (
 	"github.com/go-redis/redis"
 )
 
-type HandlerV2 struct {
+// Stamper is a handler for moving ready to build tasks to done state
+type Stamper struct {
 	settingsBuilder SettingsBuilder
 	rdb             *redis.Client
 }
 
-func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) (*HandlerV2, error) {
+func NewStamper(settingsBuilder SettingsBuilder, redisUrl string) (*Stamper, error) {
 	options, err := redis.ParseURL(redisUrl)
 	if err != nil {
 		return nil, err
@@ -25,10 +27,10 @@ func NewHandlerV2(settingsBuilder SettingsBuilder, redisUrl string) (*HandlerV2,
 	if err != nil {
 		return nil, err
 	}
-	return &HandlerV2{settingsBuilder, rdb}, nil
+	return &Stamper{settingsBuilder, rdb}, nil
 }
 
-func (t *HandlerV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (t *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	switch r.Header.Get("Bitrise-Event-Type") {
 	case "build/triggered":
@@ -38,11 +40,16 @@ func (t *HandlerV2) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (t *HandlerV2) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
-	payload, errJson, err := t.readPayload(r)
+func writeResponse(w http.ResponseWriter, statusCode int, message string) {
+	errJSON := NewErrorResponse(message)
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(errJSON)
+}
+
+func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
+	payload, err := t.readPayload(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errJson)
+		writeResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -97,11 +104,10 @@ func (t *HandlerV2) handleTriggeredEvent(w http.ResponseWriter, r *http.Request)
 	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
 }
 
-func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
-	payload, errResponse, err := t.readPayload(r)
+func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
+	payload, err := t.readPayload(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errResponse)
+		writeResponse(w, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -153,17 +159,17 @@ func (t *HandlerV2) handleFinishedEvent(w http.ResponseWriter, r *http.Request) 
 	json.NewEncoder(w).Encode(response)
 }
 
-func (t *HandlerV2) readPayload(r *http.Request) (*HookPayload, *HookErrorResponse, error) {
+func (t *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, NewErrorResponse("Received wrong request data payload"), err
+		return nil, errors.New("Received wrong request data payload")
 	}
 
 	payload := new(HookPayload)
 	err = json.Unmarshal(data, payload)
 	if err != nil {
-		return nil, NewErrorResponse("Can't decode request payload json data"), err
+		return nil, errors.New("Can't decode request payload json data")
 	}
 
-	return payload, nil, nil
+	return payload, nil
 }

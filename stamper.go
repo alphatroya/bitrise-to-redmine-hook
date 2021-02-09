@@ -33,25 +33,22 @@ func NewStamper(settingsBuilder SettingsBuilder, redisURL string) (*Stamper, err
 
 func (t *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
+
+	rp := r.Header.Get("REDMINE_PROJECT")
+	if len(rp) == 0 {
+		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
+		return
+	}
+
 	switch r.Header.Get("Bitrise-Event-Type") {
 	case "build/triggered":
-		t.handleTriggeredEvent(w, r)
+		t.handleTriggeredEvent(w, r, rp)
 	case "build/finished":
-		t.handleFinishedEvent(w, r)
+		t.handleFinishedEvent(w, r, rp)
 	}
 }
 
-func (t *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
-	t.writeResponse(w, statusCode, err.Error())
-}
-
-func (t *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
-	messageJSON := NewErrorResponse(message)
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(messageJSON)
-}
-
-func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
+func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
 	payload, err := t.readPayload(r)
 	if err != nil {
 		t.writeErrResponse(w, http.StatusBadRequest, err)
@@ -66,12 +63,6 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
 	settings, errorResponse := t.settingsBuilder.build()
 	if errorResponse != nil {
 		t.writeResponse(w, http.StatusInternalServerError, errorResponse.Message)
-		return
-	}
-
-	redmineProject := r.Header.Get("REDMINE_PROJECT")
-	if len(redmineProject) == 0 {
-		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
 		return
 	}
 
@@ -104,16 +95,10 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
 }
 
-func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
+func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
 	payload, err := t.readPayload(r)
 	if err != nil {
 		t.writeErrResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	redmineProject := r.Header.Get("REDMINE_PROJECT")
-	if len(redmineProject) == 0 {
-		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
 		return
 	}
 
@@ -162,4 +147,14 @@ func (t *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
 	}
 
 	return payload, nil
+}
+
+func (t *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
+	t.writeResponse(w, statusCode, err.Error())
+}
+
+func (t *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
+	messageJSON := NewErrorResponse(message)
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(messageJSON)
 }

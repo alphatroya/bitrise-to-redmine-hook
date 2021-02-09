@@ -7,28 +7,17 @@ import (
 	"io/ioutil"
 	"net/http"
 	"time"
-
-	"github.com/go-redis/redis"
 )
 
 // Stamper is a handler for moving ready to build tasks to done state
 type Stamper struct {
 	settingsBuilder SettingsBuilder
-	rdb             *redis.Client
+	rdb             Storage
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settingsBuilder SettingsBuilder, redisURL string) (*Stamper, error) {
-	options, err := redis.ParseURL(redisURL)
-	if err != nil {
-		return nil, err
-	}
-	rdb := redis.NewClient(options)
-	_, err = rdb.Ping().Result()
-	if err != nil {
-		return nil, err
-	}
-	return &Stamper{settingsBuilder, rdb}, nil
+func NewStamper(settingsBuilder SettingsBuilder, storage Storage) *Stamper {
+	return &Stamper{settingsBuilder, storage}
 }
 
 func (t *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {

@@ -18,8 +18,8 @@ type Stamper struct {
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settingsBuilder SettingsBuilder, redisUrl string) (*Stamper, error) {
-	options, err := redis.ParseURL(redisUrl)
+func NewStamper(settingsBuilder SettingsBuilder, redisURL string) (*Stamper, error) {
+	options, err := redis.ParseURL(redisURL)
 	if err != nil {
 		return nil, err
 	}

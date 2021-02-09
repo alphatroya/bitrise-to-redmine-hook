@@ -17,6 +17,7 @@ type Stamper struct {
 	rdb             *redis.Client
 }
 
+// NewStamper creates handler class configured by settings and connected to redis client
 func NewStamper(settingsBuilder SettingsBuilder, redisUrl string) (*Stamper, error) {
 	options, err := redis.ParseURL(redisUrl)
 	if err != nil {
@@ -40,44 +41,43 @@ func (t *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func writeResponse(w http.ResponseWriter, statusCode int, message string) {
-	errJSON := NewErrorResponse(message)
+func (t *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
+	t.writeResponse(w, statusCode, err.Error())
+}
+
+func (t *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
+	messageJSON := NewErrorResponse(message)
 	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(errJSON)
+	_ = json.NewEncoder(w).Encode(messageJSON)
 }
 
 func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
 	payload, err := t.readPayload(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, err.Error())
+		t.writeErrResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
-	if payload.BuildTriggeredWorkflow != "internal" {
-		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build workflow is not internal"))
+	if err = payload.ValidateInternal(); err != nil {
+		t.writeErrResponse(w, http.StatusOK, err)
 		return
 	}
 
 	settings, errorResponse := t.settingsBuilder.build()
 	if errorResponse != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errorResponse)
+		t.writeResponse(w, http.StatusInternalServerError, errorResponse.Message)
 		return
 	}
 
 	redmineProject := r.Header.Get("REDMINE_PROJECT")
 	if len(redmineProject) == 0 {
-		errJSON := NewErrorResponse("REDMINE_PROJECT header is not set")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errJSON)
+		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
 		return
 	}
 
 	issues, err := issues(settings, redmineProject)
 	if err != nil {
-		errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errJSON)
+		t.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
 		return
 	}
 
@@ -107,32 +107,24 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request) {
 func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
 	payload, err := t.readPayload(r)
 	if err != nil {
-		writeResponse(w, http.StatusBadRequest, err.Error())
+		t.writeErrResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	redmineProject := r.Header.Get("REDMINE_PROJECT")
 	if len(redmineProject) == 0 {
-		errJSON := NewErrorResponse("REDMINE_PROJECT header is not set")
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(errJSON)
+		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
 		return
 	}
 
-	if payload.BuildTriggeredWorkflow != "internal" {
-		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build workflow is not internal"))
-		return
-	}
-
-	if payload.BuildStatus != 1 {
-		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not success"))
+	if err = payload.ValidateInternalAndSuccess(); err != nil {
+		t.writeErrResponse(w, http.StatusOK, err)
 		return
 	}
 
 	settings, errorResponse := t.settingsBuilder.build()
 	if errorResponse != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errorResponse)
+		t.writeResponse(w, http.StatusInternalServerError, errorResponse.Message)
 		return
 	}
 
@@ -142,9 +134,7 @@ func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		issuesList, err = issues(settings, redmineProject)
 		if err != nil {
-			errJSON := NewErrorResponse(fmt.Sprintf("Wrong error from server: %s", err))
-			w.WriteHeader(http.StatusBadRequest)
-			json.NewEncoder(w).Encode(errJSON)
+			t.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
 			return
 		}
 	} else {

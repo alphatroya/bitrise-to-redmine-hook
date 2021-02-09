@@ -35,13 +35,8 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if payload.BuildTriggeredWorkflow != "internal" {
-		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build workflow is not internal"))
-		return
-	}
-
-	if payload.BuildStatus != 1 {
-		json.NewEncoder(w).Encode(NewResponse("Skipping done transition: build status is not success"))
+	if err = payload.ValidateInternalAndSuccess(); err != nil {
+		json.NewEncoder(w).Encode(NewResponse(err.Error()))
 		return
 	}
 

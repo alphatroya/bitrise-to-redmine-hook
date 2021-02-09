@@ -20,8 +20,8 @@ func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNum
 	}
 
 	type PayloadIssue struct {
-		AssignedToId string                `json:"assigned_to_id"`
-		StatusId     string                `json:"status_id"`
+		AssignedToID string                `json:"assigned_to_id"`
+		StatusID     string                `json:"status_id"`
 		CustomFields []*PayloadCustomField `json:"custom_fields"`
 	}
 
@@ -31,8 +31,8 @@ func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNum
 
 	requestBody := Payload{
 		Issue: &PayloadIssue{
-			AssignedToId: fmt.Sprintf("%d", issue.Author.ID),
-			StatusId:     settings.doneStatus,
+			AssignedToID: fmt.Sprintf("%d", issue.Author.ID),
+			StatusID:     settings.doneStatus,
 			CustomFields: []*PayloadCustomField{
 				{settings.buildFieldID, fmt.Sprintf("%d", buildNumber)},
 			},

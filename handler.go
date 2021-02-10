@@ -68,32 +68,3 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(response)
 }
-
-func issues(settings *Settings, project string) (*IssuesContainer, error) {
-	request, err := http.NewRequest("GET", settings.host+"/issues.json?status_id="+settings.rtbStatus+"&project_id="+project, nil)
-	if err != nil {
-		return nil, err
-	}
-	request.Header.Set("X-Redmine-API-Key", settings.authToken)
-	request.Header.Set("Content-Type", "application/json")
-
-	response, err := http.DefaultClient.Do(request)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-	if response.StatusCode >= 400 {
-		return nil, fmt.Errorf("Received wrong status code %d", response.StatusCode)
-	}
-	data, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-	result := new(IssuesContainer)
-	err = json.Unmarshal(data, result)
-	if err != nil {
-		return nil, err
-	}
-
-	return result, nil
-}

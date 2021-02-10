@@ -5,14 +5,23 @@ import (
 	"strconv"
 )
 
+const (
+	redisURLEnvKey = "REDIS_URL"
+)
+
 type SettingsBuilder interface {
-	build() (*Settings, *HookErrorResponse)
+	build() (*Settings, error)
 }
 
 type EnvSettingsBuilder struct {
 }
 
-func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
+func (e *EnvSettingsBuilder) build() (*Settings, error) {
+	redis, err := getEnvVar(redisURLEnvKey)
+	if err != nil {
+		return nil, err
+	}
+
 	host, err := getEnvVar("REDMINE_HOST")
 	if err != nil {
 		return nil, err
@@ -32,8 +41,8 @@ func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
 	if err != nil {
 		return nil, err
 	}
-	buildFieldID, parseErr := strconv.ParseInt(buildFieldIDString, 10, 32)
-	if parseErr != nil {
+	buildFieldID, err := strconv.ParseInt(buildFieldIDString, 10, 32)
+	if err != nil {
 		return nil, &HookErrorResponse{Message: "Failed to parse STAMP_BUILD_CUSTOM_FIELD parameter to int"}
 	}
 
@@ -43,6 +52,7 @@ func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
 	}
 
 	return &Settings{
+		redisURL:     redis,
 		host:         host,
 		authToken:    authToken,
 		rtbStatus:    rtbStatus,
@@ -51,11 +61,11 @@ func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
 	}, nil
 }
 
-func getEnvVar(key string) (string, *HookErrorResponse) {
-	authToken := os.Getenv(key)
-	if len(authToken) == 0 {
-		errJSON := NewErrorResponse(key + " ENV variable is not set")
-		return "", errJSON
+func getEnvVar(key string) (string, error) {
+	val := os.Getenv(key)
+	if len(val) == 0 {
+		resp := NewErrorResponse(key + " ENV variable is not set")
+		return "", resp
 	}
-	return authToken, nil
+	return val, nil
 }

@@ -4,26 +4,40 @@ import (
 	"log"
 	"net/http"
 	"os"
-)
 
-const (
-	redisURLEnvKey = "REDIS_URL"
+	"github.com/go-redis/redis"
 )
 
 func main() {
-	redis := os.Getenv(redisURLEnvKey)
-	if len(redis) == 0 {
-		log.Fatalf("%s should be set", redisURLEnvKey)
-	}
-	http.Handle("/bitrise", &Handler{&EnvSettingsBuilder{}})
-	v2, err := NewStamper(&EnvSettingsBuilder{}, redis)
+	sb := &EnvSettingsBuilder{}
+	settings, err := sb.build()
 	if err != nil {
-		log.Fatalf("failed to create v2 handler")
+		log.Fatalf("Failed to create settings %s", err)
 	}
+
+	v2, err := createStamper(settings)
+	if err != nil {
+		log.Fatalf("Failed to create v2 handler %s", err)
+	}
+	http.Handle("/bitrise", &Handler{sb})
 	http.Handle("/bitrise/v2", v2)
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = "8080"
 	}
 	log.Fatal(http.ListenAndServe(":"+port, nil))
+}
+
+func createStamper(settings *Settings) (*Stamper, error) {
+	options, err := redis.ParseURL(settings.redisURL)
+	if err != nil {
+		return nil, err
+	}
+	rdb := redis.NewClient(options)
+	_, err = rdb.Ping().Result()
+	if err != nil {
+		return nil, err
+	}
+
+	return NewStamper(settings, rdb), nil
 }

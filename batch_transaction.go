@@ -1,6 +1,6 @@
 package main
 
-func batchTransaction(rm DoneMarker, issues *IssuesList, settings *Settings, buildNumber int) *HookResponse {
+func batchTransaction(rm DoneMarker, issues *IssuesContainer, settings *Settings, buildNumber int) *HookResponse {
 	type Result struct {
 		id  int
 		err error

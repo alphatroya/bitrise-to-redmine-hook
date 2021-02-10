@@ -40,10 +40,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, errorResponse := h.settingsBuilder.build()
-	if errorResponse != nil {
+	settings, err := h.settingsBuilder.build()
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(err)
 		return
 	}
 
@@ -69,7 +69,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func issues(settings *Settings, project string) (*IssuesList, error) {
+func issues(settings *Settings, project string) (*IssuesContainer, error) {
 	request, err := http.NewRequest("GET", settings.host+"/issues.json?status_id="+settings.rtbStatus+"&project_id="+project, nil)
 	if err != nil {
 		return nil, err
@@ -89,7 +89,7 @@ func issues(settings *Settings, project string) (*IssuesList, error) {
 	if err != nil {
 		return nil, err
 	}
-	result := new(IssuesList)
+	result := new(IssuesContainer)
 	err = json.Unmarshal(data, result)
 	if err != nil {
 		return nil, err

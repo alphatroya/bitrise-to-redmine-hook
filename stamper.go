@@ -55,14 +55,13 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, r
 		return
 	}
 
-	issues, err := issues(settings, redmineProject)
+	iContainer, err := issues(settings, redmineProject)
 	if err != nil {
 		t.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
 		return
 	}
 
-	// TODO: we don't need Mashal here, just use Request body here
-	data, err := json.Marshal(issues)
+	data, err := json.Marshal(iContainer)
 	if err != nil {
 		errJSON := NewErrorResponse(fmt.Sprintf("Can't serialize data to string: %s", err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -78,7 +77,7 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, r
 	}
 
 	logItems := []int{}
-	for _, issue := range issues.Issues {
+	for _, issue := range iContainer.Issues {
 		logItems = append(logItems, issue.ID)
 	}
 	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})

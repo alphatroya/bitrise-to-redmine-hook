@@ -52,10 +52,10 @@ func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
 }
 
 func getEnvVar(key string) (string, *HookErrorResponse) {
-	authToken := os.Getenv(key)
-	if len(authToken) == 0 {
-		errJSON := NewErrorResponse(key + " ENV variable is not set")
-		return "", errJSON
+	val := os.Getenv(key)
+	if len(val) == 0 {
+		resp := NewErrorResponse(key + " ENV variable is not set")
+		return "", resp
 	}
-	return authToken, nil
+	return val, nil
 }

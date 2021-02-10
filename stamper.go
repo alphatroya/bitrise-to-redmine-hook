@@ -11,53 +11,47 @@ import (
 
 // Stamper is a handler for moving ready to build tasks to done state
 type Stamper struct {
-	settingsBuilder SettingsBuilder
-	rdb             Storage
+	settings *Settings
+	rdb      Storage
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settingsBuilder SettingsBuilder, storage Storage) *Stamper {
-	return &Stamper{settingsBuilder, storage}
+func NewStamper(settings *Settings, storage Storage) *Stamper {
+	return &Stamper{settings, storage}
 }
 
-func (t *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 
 	rp := r.Header.Get("REDMINE_PROJECT")
 	if len(rp) == 0 {
-		t.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
+		s.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
 		return
 	}
 
 	switch r.Header.Get("Bitrise-Event-Type") {
 	case "build/triggered":
-		t.handleTriggeredEvent(w, r, rp)
+		s.handleTriggeredEvent(w, r, rp)
 	case "build/finished":
-		t.handleFinishedEvent(w, r, rp)
+		s.handleFinishedEvent(w, r, rp)
 	}
 }
 
-func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
-	payload, err := t.readPayload(r)
+func (s *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
+	payload, err := s.readPayload(r)
 	if err != nil {
-		t.writeErrResponse(w, http.StatusBadRequest, err)
+		s.writeErrResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if err = payload.ValidateInternal(); err != nil {
-		t.writeErrResponse(w, http.StatusOK, err)
+		s.writeErrResponse(w, http.StatusOK, err)
 		return
 	}
 
-	settings, errorResponse := t.settingsBuilder.build()
-	if errorResponse != nil {
-		t.writeResponse(w, http.StatusInternalServerError, errorResponse.Message)
-		return
-	}
-
-	iContainer, err := issues(settings, redmineProject)
+	iContainer, err := issues(s.settings, redmineProject)
 	if err != nil {
-		t.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
+		s.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
 		return
 	}
 
@@ -68,7 +62,7 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, r
 		json.NewEncoder(w).Encode(errJSON)
 		return
 	}
-	err = t.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
+	err = s.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
 	if err != nil {
 		errJSON := NewErrorResponse(fmt.Sprintf("Can't write new cache with build: %+v\nerror: %s", payload, err))
 		w.WriteHeader(http.StatusInternalServerError)
@@ -83,31 +77,25 @@ func (t *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, r
 	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
 }
 
-func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
-	payload, err := t.readPayload(r)
+func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
+	payload, err := s.readPayload(r)
 	if err != nil {
-		t.writeErrResponse(w, http.StatusBadRequest, err)
+		s.writeErrResponse(w, http.StatusBadRequest, err)
 		return
 	}
 
 	if err = payload.ValidateInternalAndSuccess(); err != nil {
-		t.writeErrResponse(w, http.StatusOK, err)
+		s.writeErrResponse(w, http.StatusOK, err)
 		return
 	}
 
-	settings, errorResponse := t.settingsBuilder.build()
-	if errorResponse != nil {
-		t.writeResponse(w, http.StatusInternalServerError, errorResponse.Message)
-		return
-	}
-
-	cached, err := t.rdb.Get(payload.BuildSlug).Result()
+	cached, err := s.rdb.Get(payload.BuildSlug).Result()
 	var issuesList *IssuesList
 	version := "v2"
 	if err != nil {
-		issuesList, err = issues(settings, redmineProject)
+		issuesList, err = issues(s.settings, redmineProject)
 		if err != nil {
-			t.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
+			s.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
 			return
 		}
 	} else {
@@ -116,13 +104,13 @@ func (t *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request, re
 		json.Unmarshal([]byte(cached), issuesList)
 	}
 
-	response := batchTransaction(RedmineDoneMarker{}, issuesList, settings, payload.BuildNumber)
-	_ = sendMailgunNotification(response, settings.host, payload.BuildNumber, issuesList.Issues, version)
+	response := batchTransaction(RedmineDoneMarker{}, issuesList, s.settings, payload.BuildNumber)
+	_ = sendMailgunNotification(response, s.settings.host, payload.BuildNumber, issuesList.Issues, version)
 
 	json.NewEncoder(w).Encode(response)
 }
 
-func (t *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
+func (s *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, errors.New("Received wrong request data payload")
@@ -137,11 +125,11 @@ func (t *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
 	return payload, nil
 }
 
-func (t *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
-	t.writeResponse(w, statusCode, err.Error())
+func (s *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
+	s.writeResponse(w, statusCode, err.Error())
 }
 
-func (t *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
+func (s *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
 	messageJSON := NewErrorResponse(message)
 	w.WriteHeader(statusCode)
 	_ = json.NewEncoder(w).Encode(messageJSON)

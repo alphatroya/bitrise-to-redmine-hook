@@ -149,9 +149,9 @@ func (m mockBody) Read(p []byte) (n int, err error) {
 
 type mockSettingsBuilder struct {
 	s *Settings
-	e *HookErrorResponse
+	e error
 }
 
-func (b *mockSettingsBuilder) build() (*Settings, *HookErrorResponse) {
+func (b *mockSettingsBuilder) build() (*Settings, error) {
 	return b.s, b.e
 }

@@ -6,13 +6,13 @@ import (
 )
 
 type SettingsBuilder interface {
-	build() (*Settings, *HookErrorResponse)
+	build() (*Settings, error)
 }
 
 type EnvSettingsBuilder struct {
 }
 
-func (e *EnvSettingsBuilder) build() (*Settings, *HookErrorResponse) {
+func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	host, err := getEnvVar("REDMINE_HOST")
 	if err != nil {
 		return nil, err

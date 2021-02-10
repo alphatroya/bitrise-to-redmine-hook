@@ -40,10 +40,10 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	settings, errorResponse := h.settingsBuilder.build()
-	if errorResponse != nil {
+	settings, err := h.settingsBuilder.build()
+	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errorResponse)
+		json.NewEncoder(w).Encode(err)
 		return
 	}
 

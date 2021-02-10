@@ -14,11 +14,17 @@ const (
 )
 
 func main() {
-	v2, err := createStamper()
+	sb := &EnvSettingsBuilder{}
+	settings, err := sb.build()
 	if err != nil {
-		log.Fatalf("failed to create v2 handler %s", err)
+		log.Fatalf("Failed to create settings %s", err)
 	}
-	http.Handle("/bitrise", &Handler{&EnvSettingsBuilder{}})
+
+	v2, err := createStamper(settings)
+	if err != nil {
+		log.Fatalf("Failed to create v2 handler %s", err)
+	}
+	http.Handle("/bitrise", &Handler{sb})
 	http.Handle("/bitrise/v2", v2)
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
@@ -27,7 +33,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func createStamper() (*Stamper, error) {
+func createStamper(settings *Settings) (*Stamper, error) {
 	redisURL := os.Getenv(redisURLEnvKey)
 	if len(redisURL) == 0 {
 		return nil, fmt.Errorf("%s should be set", redisURLEnvKey)
@@ -41,5 +47,6 @@ func createStamper() (*Stamper, error) {
 	if err != nil {
 		return nil, err
 	}
-	return NewStamper(&EnvSettingsBuilder{}, rdb), nil
+
+	return NewStamper(settings, rdb), nil
 }

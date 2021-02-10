@@ -41,8 +41,8 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	if err != nil {
 		return nil, err
 	}
-	buildFieldID, parseErr := strconv.ParseInt(buildFieldIDString, 10, 32)
-	if parseErr != nil {
+	buildFieldID, err := strconv.ParseInt(buildFieldIDString, 10, 32)
+	if err != nil {
 		return nil, &HookErrorResponse{Message: "Failed to parse STAMP_BUILD_CUSTOM_FIELD parameter to int"}
 	}
 
@@ -61,7 +61,7 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	}, nil
 }
 
-func getEnvVar(key string) (string, *HookErrorResponse) {
+func getEnvVar(key string) (string, error) {
 	val := os.Getenv(key)
 	if len(val) == 0 {
 		resp := NewErrorResponse(key + " ENV variable is not set")

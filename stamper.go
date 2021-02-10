@@ -25,92 +25,81 @@ func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	rp := r.Header.Get("REDMINE_PROJECT")
 	if len(rp) == 0 {
-		s.writeResponse(w, http.StatusBadRequest, "REDMINE_PROJECT header is not set")
+		s.writeErrResponse(w, http.StatusBadRequest, errors.New("REDMINE_PROJECT header is not set"))
 		return
 	}
 
+	payload, err := s.readAndParsePayload(r)
+	if err != nil {
+		s.writeErrResponse(w, http.StatusBadRequest, err)
+	}
+
+	statusCode := http.StatusOK
 	switch r.Header.Get("Bitrise-Event-Type") {
 	case "build/triggered":
-		s.handleTriggeredEvent(w, r, rp)
+		statusCode, err = s.handleTriggeredEvent(w, payload, rp)
 	case "build/finished":
-		s.handleFinishedEvent(w, r, rp)
+		statusCode, err = s.handleFinishedEvent(w, payload, rp)
+	}
+	if err != nil {
+		s.writeErrResponse(w, statusCode, err)
 	}
 }
 
-func (s *Stamper) handleTriggeredEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
-	payload, err := s.readPayload(r)
-	if err != nil {
-		s.writeErrResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err = payload.ValidateInternal(); err != nil {
-		s.writeErrResponse(w, http.StatusOK, err)
-		return
+func (s *Stamper) handleTriggeredEvent(w http.ResponseWriter, payload *HookPayload, redmineProject string) (int, error) {
+	if err := payload.ValidateInternal(); err != nil {
+		return http.StatusOK, err
 	}
 
 	iContainer, err := issues(s.settings, redmineProject)
 	if err != nil {
-		s.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
-		return
+		return http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
 	}
 
 	data, err := json.Marshal(iContainer)
 	if err != nil {
-		errJSON := NewErrorResponse(fmt.Sprintf("Can't serialize data to string: %s", err))
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errJSON)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("Can't serialize data to string: %s", err)
 	}
 	err = s.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
 	if err != nil {
-		errJSON := NewErrorResponse(fmt.Sprintf("Can't write new cache with build: %+v\nerror: %s", payload, err))
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(errJSON)
-		return
+		return http.StatusInternalServerError, fmt.Errorf("Can't write new cache with build: %+v\nerror: %s", payload, err)
 	}
 
-	logItems := []int{}
+	var logItems []int
 	for _, issue := range iContainer.Issues {
 		logItems = append(logItems, issue.ID)
 	}
 	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
+	return http.StatusOK, nil
 }
 
-func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, r *http.Request, redmineProject string) {
-	payload, err := s.readPayload(r)
-	if err != nil {
-		s.writeErrResponse(w, http.StatusBadRequest, err)
-		return
-	}
-
-	if err = payload.ValidateInternalAndSuccess(); err != nil {
-		s.writeErrResponse(w, http.StatusOK, err)
-		return
+func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, payload *HookPayload, redmineProject string) (int, error) {
+	if err := payload.ValidateInternalAndSuccess(); err != nil {
+		return http.StatusOK, err
 	}
 
 	cached, err := s.rdb.Get(payload.BuildSlug).Result()
-	var issuesList *IssuesList
+	var issuesList *IssuesContainer
 	version := "v2"
 	if err != nil {
 		issuesList, err = issues(s.settings, redmineProject)
 		if err != nil {
-			s.writeResponse(w, http.StatusBadRequest, fmt.Sprintf("Wrong error from server: %s", err))
-			return
+			return http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
 		}
 	} else {
 		version += " cached"
-		issuesList = new(IssuesList)
-		json.Unmarshal([]byte(cached), issuesList)
+		issuesList = new(IssuesContainer)
+		_ = json.Unmarshal([]byte(cached), issuesList)
 	}
 
 	response := batchTransaction(RedmineDoneMarker{}, issuesList, s.settings, payload.BuildNumber)
 	_ = sendMailgunNotification(response, s.settings.host, payload.BuildNumber, issuesList.Issues, version)
 
 	json.NewEncoder(w).Encode(response)
+	return http.StatusOK, nil
 }
 
-func (s *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
+func (s *Stamper) readAndParsePayload(r *http.Request) (*HookPayload, error) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
 		return nil, errors.New("Received wrong request data payload")
@@ -126,11 +115,6 @@ func (s *Stamper) readPayload(r *http.Request) (*HookPayload, error) {
 }
 
 func (s *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
-	s.writeResponse(w, statusCode, err.Error())
-}
-
-func (s *Stamper) writeResponse(w http.ResponseWriter, statusCode int, message string) {
-	messageJSON := NewErrorResponse(message)
 	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(messageJSON)
+	_ = json.NewEncoder(w).Encode(NewErrorResponse(err.Error()))
 }

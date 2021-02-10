@@ -1,9 +1,11 @@
 package main
 
-type IssuesList struct {
+// IssuesContainer represents get issues response data
+type IssuesContainer struct {
 	Issues []*Issue `json:"issues"`
 }
 
+// Issue represents single Redmine issue
 type Issue struct {
 	Author struct {
 		ID int `json:"id"`

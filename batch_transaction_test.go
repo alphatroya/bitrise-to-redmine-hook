@@ -8,7 +8,7 @@ import (
 func TestBatchSuccessTransaction(t *testing.T) {
 	m := MockDoneMarker{}
 	s := &Settings{}
-	il := &IssuesList{
+	il := &IssuesContainer{
 		[]*Issue{
 			{},
 			{},
@@ -26,7 +26,7 @@ func TestBatchSuccessTransaction(t *testing.T) {
 func TestBatchFailTransaction(t *testing.T) {
 	m := MockDoneMarker{true}
 	s := &Settings{}
-	il := &IssuesList{
+	il := &IssuesContainer{
 		[]*Issue{
 			{},
 			{},

@@ -2,6 +2,7 @@ package main
 
 import "errors"
 
+// HookPayload represents webhook json payload sended from Bitrise
 type HookPayload struct {
 	BuildSlug              string `json:"build_slug"`
 	BuildNumber            int    `json:"build_number"`

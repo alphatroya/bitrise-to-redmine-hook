@@ -5,6 +5,10 @@ import (
 	"strconv"
 )
 
+const (
+	redisURLEnvKey = "REDIS_URL"
+)
+
 type SettingsBuilder interface {
 	build() (*Settings, error)
 }
@@ -13,6 +17,11 @@ type EnvSettingsBuilder struct {
 }
 
 func (e *EnvSettingsBuilder) build() (*Settings, error) {
+	redis, err := getEnvVar(redisURLEnvKey)
+	if err != nil {
+		return nil, err
+	}
+
 	host, err := getEnvVar("REDMINE_HOST")
 	if err != nil {
 		return nil, err
@@ -43,6 +52,7 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	}
 
 	return &Settings{
+		redisURL:     redis,
 		host:         host,
 		authToken:    authToken,
 		rtbStatus:    rtbStatus,

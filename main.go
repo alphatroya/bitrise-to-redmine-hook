@@ -1,16 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 
 	"github.com/go-redis/redis"
-)
-
-const (
-	redisURLEnvKey = "REDIS_URL"
 )
 
 func main() {
@@ -34,11 +29,7 @@ func main() {
 }
 
 func createStamper(settings *Settings) (*Stamper, error) {
-	redisURL := os.Getenv(redisURLEnvKey)
-	if len(redisURL) == 0 {
-		return nil, fmt.Errorf("%s should be set", redisURLEnvKey)
-	}
-	options, err := redis.ParseURL(redisURL)
+	options, err := redis.ParseURL(settings.redisURL)
 	if err != nil {
 		return nil, err
 	}

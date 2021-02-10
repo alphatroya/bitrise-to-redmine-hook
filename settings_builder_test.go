@@ -12,16 +12,24 @@ func TestSettingsBuilderFailures(t *testing.T) {
 	}{
 		{
 			map[string]string{},
+			"REDIS_URL ENV variable is not set",
+		},
+		{
+			map[string]string{
+				redisURLEnvKey: "redis",
+			},
 			"REDMINE_HOST ENV variable is not set",
 		},
 		{
 			map[string]string{
+				redisURLEnvKey: "redis",
 				"REDMINE_HOST": "https://google.com",
 			},
 			"REDMINE_API_KEY ENV variable is not set",
 		},
 		{
 			map[string]string{
+				redisURLEnvKey:    "redis",
 				"REDMINE_HOST":    "https://google.com",
 				"REDMINE_API_KEY": "11881",
 			},
@@ -29,6 +37,7 @@ func TestSettingsBuilderFailures(t *testing.T) {
 		},
 		{
 			map[string]string{
+				redisURLEnvKey:                "redis",
 				"REDMINE_HOST":                "https://google.com",
 				"REDMINE_API_KEY":             "11881",
 				"STAMP_READY_TO_BUILD_STATUS": "1",
@@ -37,6 +46,7 @@ func TestSettingsBuilderFailures(t *testing.T) {
 		},
 		{
 			map[string]string{
+				redisURLEnvKey:                "redis",
 				"REDMINE_HOST":                "https://google.com",
 				"REDMINE_API_KEY":             "11881",
 				"STAMP_READY_TO_BUILD_STATUS": "1",
@@ -46,6 +56,7 @@ func TestSettingsBuilderFailures(t *testing.T) {
 		},
 		{
 			map[string]string{
+				redisURLEnvKey:                "redis",
 				"REDMINE_HOST":                "https://google.com",
 				"REDMINE_API_KEY":             "11881",
 				"STAMP_READY_TO_BUILD_STATUS": "1",
@@ -78,6 +89,7 @@ func TestSettingsBuilderSuccess(t *testing.T) {
 	}{
 		{
 			map[string]string{
+				redisURLEnvKey:                "redis",
 				"REDMINE_HOST":                "https://google.com",
 				"REDMINE_API_KEY":             "11881",
 				"STAMP_READY_TO_BUILD_STATUS": "1",
@@ -85,6 +97,7 @@ func TestSettingsBuilderSuccess(t *testing.T) {
 				"STAMP_DONE_STATUS":           "1222",
 			},
 			&Settings{
+				"redis",
 				"https://google.com",
 				"11881",
 				"1",
@@ -104,7 +117,8 @@ func TestSettingsBuilderSuccess(t *testing.T) {
 		if err != nil {
 			t.Errorf("Build settings should succeed, received error: %s", err)
 		}
-		if tc.expected.host != received.host ||
+		if tc.expected.redisURL != received.redisURL ||
+			tc.expected.host != received.host ||
 			tc.expected.authToken != received.authToken ||
 			tc.expected.rtbStatus != received.rtbStatus ||
 			tc.expected.buildFieldID != received.buildFieldID ||

@@ -24,15 +24,15 @@ func NewStamper(settings *Settings, storage Storage, logger *log.Logger) *Stampe
 
 func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, statusCode, err := s.handleEvent(r)
-	s.logger.Printf("Create new response with status code %d", statusCode)
+	s.logger.Printf("Create new response with status code: %d", statusCode)
 	if err != nil {
-		s.logger.Printf("Answer response with ERROR message %s", err.Error())
+		s.logger.Printf("Answer response with ERROR message: %s", err.Error())
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	s.logger.Printf("Answer response with SUCCESS message %+v", resp)
+	s.logger.Printf("Answer response with SUCCESS message: %+v", resp)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 

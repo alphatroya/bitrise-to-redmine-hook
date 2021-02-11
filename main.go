@@ -38,7 +38,7 @@ func createStamper(settings *Settings) (*Stamper, error) {
 	if err != nil {
 		return nil, err
 	}
-	logger := log.New(os.Stdout, "Stamper: ", 0)
+	logger := log.New(os.Stdout, "Stamper: ", log.LstdFlags)
 
 	return NewStamper(settings, rdb, logger), nil
 }

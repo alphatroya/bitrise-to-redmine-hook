@@ -21,61 +21,67 @@ func NewStamper(settings *Settings, storage Storage) *Stamper {
 }
 
 func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	resp, statusCode, err := s.handleEvent(r)
+	if err != nil {
+		http.Error(w, err.Error(), statusCode)
+		return
+	}
 	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(statusCode)
+	_ = json.NewEncoder(w).Encode(resp)
+}
 
+func (s *Stamper) handleEvent(r *http.Request) (*HookResponse, int, error) {
 	rp := r.Header.Get("REDMINE_PROJECT")
 	if len(rp) == 0 {
-		s.writeErrResponse(w, http.StatusBadRequest, errors.New("REDMINE_PROJECT header is not set"))
-		return
+		return nil, http.StatusBadRequest, errors.New("REDMINE_PROJECT header is absent in the hook header")
 	}
 
 	payload, err := s.readAndParsePayload(r)
 	if err != nil {
-		s.writeErrResponse(w, http.StatusBadRequest, err)
+		return nil, http.StatusBadRequest, err
 	}
 
-	statusCode := http.StatusOK
-	switch r.Header.Get("Bitrise-Event-Type") {
+	et := r.Header.Get("Bitrise-Event-Type")
+	switch et {
 	case "build/triggered":
-		statusCode, err = s.handleTriggeredEvent(w, payload, rp)
+		return s.handleTriggeredEvent(payload, rp)
 	case "build/finished":
-		statusCode, err = s.handleFinishedEvent(w, payload, rp)
-	}
-	if err != nil {
-		s.writeErrResponse(w, statusCode, err)
+		return s.handleFinishedEvent(payload, rp)
+	default:
+		return nil, http.StatusOK, fmt.Errorf("Unsupported bitrise event type %s", et)
 	}
 }
 
-func (s *Stamper) handleTriggeredEvent(w http.ResponseWriter, payload *HookPayload, redmineProject string) (int, error) {
+func (s *Stamper) handleTriggeredEvent(payload *HookPayload, redmineProject string) (*HookResponse, int, error) {
 	if err := payload.ValidateInternal(); err != nil {
-		return http.StatusOK, err
+		return nil, http.StatusOK, err
 	}
 
 	iContainer, err := issues(s.settings, redmineProject)
 	if err != nil {
-		return http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
+		return nil, http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
 	}
 
 	data, err := json.Marshal(iContainer)
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("Can't serialize data to string: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("Can't serialize data to string: %s", err)
 	}
 	err = s.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
 	if err != nil {
-		return http.StatusInternalServerError, fmt.Errorf("Can't write new cache with build: %+v\nerror: %s", payload, err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("Can't write new cache with build: %+v\nerror: %s", payload, err)
 	}
 
 	var logItems []int
 	for _, issue := range iContainer.Issues {
 		logItems = append(logItems, issue.ID)
 	}
-	json.NewEncoder(w).Encode(HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}})
-	return http.StatusOK, nil
+	return &HookResponse{fmt.Sprintf("Caching issue data was completed (Build: %s)", payload.BuildSlug), logItems, []int{}}, http.StatusOK, nil
 }
 
-func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, payload *HookPayload, redmineProject string) (int, error) {
+func (s *Stamper) handleFinishedEvent(payload *HookPayload, redmineProject string) (*HookResponse, int, error) {
 	if err := payload.ValidateInternalAndSuccess(); err != nil {
-		return http.StatusOK, err
+		return nil, http.StatusOK, err
 	}
 
 	cached, err := s.rdb.Get(payload.BuildSlug).Result()
@@ -84,7 +90,7 @@ func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, payload *HookPayloa
 	if err != nil {
 		issuesList, err = issues(s.settings, redmineProject)
 		if err != nil {
-			return http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
+			return nil, http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
 		}
 	} else {
 		version += " cached"
@@ -95,8 +101,7 @@ func (s *Stamper) handleFinishedEvent(w http.ResponseWriter, payload *HookPayloa
 	response := batchTransaction(RedmineDoneMarker{}, issuesList, s.settings, payload.BuildNumber)
 	_ = sendMailgunNotification(response, s.settings.host, payload.BuildNumber, issuesList.Issues, version)
 
-	json.NewEncoder(w).Encode(response)
-	return http.StatusOK, nil
+	return response, http.StatusOK, nil
 }
 
 func (s *Stamper) readAndParsePayload(r *http.Request) (*HookPayload, error) {
@@ -112,9 +117,4 @@ func (s *Stamper) readAndParsePayload(r *http.Request) (*HookPayload, error) {
 	}
 
 	return payload, nil
-}
-
-func (s *Stamper) writeErrResponse(w http.ResponseWriter, statusCode int, err error) {
-	w.WriteHeader(statusCode)
-	_ = json.NewEncoder(w).Encode(NewErrorResponse(err.Error()))
 }

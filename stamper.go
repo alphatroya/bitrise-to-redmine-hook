@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
+	"log"
 	"net/http"
 	"time"
 )
@@ -13,21 +14,25 @@ import (
 type Stamper struct {
 	settings *Settings
 	rdb      Storage
+	logger   *log.Logger
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settings *Settings, storage Storage) *Stamper {
-	return &Stamper{settings, storage}
+func NewStamper(settings *Settings, storage Storage, logger *log.Logger) *Stamper {
+	return &Stamper{settings, storage, logger}
 }
 
 func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	resp, statusCode, err := s.handleEvent(r)
+	s.logger.Printf("Create new response with status code %d", statusCode)
 	if err != nil {
+		s.logger.Printf("Answer response with ERROR message %s", err.Error())
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
+	s.logger.Printf("Answer response with SUCCESS message %+v", resp)
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
@@ -43,6 +48,7 @@ func (s *Stamper) handleEvent(r *http.Request) (*HookResponse, int, error) {
 	}
 
 	et := r.Header.Get("Bitrise-Event-Type")
+	s.logger.Printf("Received bitrise event %s", et)
 	switch et {
 	case "build/triggered":
 		return s.handleTriggeredEvent(payload, rp)
@@ -115,6 +121,7 @@ func (s *Stamper) readAndParsePayload(r *http.Request) (*HookPayload, error) {
 	if err != nil {
 		return nil, errors.New("Can't decode request payload json data")
 	}
+	s.logger.Printf("Received input payload json: %+v", payload)
 
 	return payload, nil
 }

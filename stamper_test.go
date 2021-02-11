@@ -37,3 +37,21 @@ func TestStamperRequestRedmineProjectKeyCheckSuccess(t *testing.T) {
 		t.Errorf("Response status code should be 200 on success, received %d", rw.Result().StatusCode)
 	}
 }
+
+func TestStamperRequestTriggeredEventNonInternal(t *testing.T) {
+	req, _ := http.NewRequest(http.MethodGet, "", newMockBody(`{"build_triggered_workflow":"test", "build_status":1, "build_number":12}`))
+	req.Header.Set("REDMINE_PROJECT", "11")
+	req.Header.Set("Bitrise-Event-Type", "build/triggered")
+	rw := httptest.NewRecorder()
+	handler := NewStamper(nil, nil)
+	handler.ServeHTTP(rw, req)
+	if rw.Result().StatusCode != http.StatusOK {
+		t.Errorf("Response status code should be 200 on success, received %d", rw.Result().StatusCode)
+	}
+
+	resp := string(rw.Body.Bytes())
+	expected := "Skipping done transition: build workflow is not internal\n"
+	if resp != expected {
+		t.Errorf("Response body message wrong\nreceived: %q\nexpected: %q", resp, expected)
+	}
+}

@@ -53,7 +53,7 @@ func TestStamperRequestTriggeredEventNonInternal(t *testing.T) {
 		t.Errorf("Response status code should be 200 on success, received %d", rw.Result().StatusCode)
 	}
 
-	resp := string(rw.Body.Bytes())
+	resp := rw.Body.String()
 	expected := "Skipping done transition: build workflow is not internal\n"
 	if resp != expected {
 		t.Errorf("Response body message wrong\nreceived: %q\nexpected: %q", resp, expected)

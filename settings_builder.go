@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"strconv"
 )
@@ -8,10 +9,6 @@ import (
 const (
 	redisURLEnvKey = "REDIS_URL"
 )
-
-type SettingsBuilder interface {
-	build() (*Settings, error)
-}
 
 type EnvSettingsBuilder struct {
 }
@@ -43,7 +40,7 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	}
 	buildFieldID, err := strconv.ParseInt(buildFieldIDString, 10, 32)
 	if err != nil {
-		return nil, &HookErrorResponse{Message: "Failed to parse STAMP_BUILD_CUSTOM_FIELD parameter to int"}
+		return nil, errors.New("Failed to parse STAMP_BUILD_CUSTOM_FIELD parameter to int")
 	}
 
 	nextStatus, err := getEnvVar("STAMP_DONE_STATUS")
@@ -64,8 +61,7 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 func getEnvVar(key string) (string, error) {
 	val := os.Getenv(key)
 	if len(val) == 0 {
-		resp := NewErrorResponse(key + " ENV variable is not set")
-		return "", resp
+		return "", errors.New(key + " ENV variable is not set")
 	}
 	return val, nil
 }

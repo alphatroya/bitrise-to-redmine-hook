@@ -15,12 +15,12 @@ func main() {
 		log.Fatalf("Failed to create settings %s", err)
 	}
 
-	v2, err := createStamper(settings)
+	stamper, err := createStamper(settings)
 	if err != nil {
 		log.Fatalf("Failed to create v2 handler %s", err)
 	}
-	http.Handle("/bitrise", &Handler{sb})
-	http.Handle("/bitrise/v2", v2)
+	http.Handle("/bitrise", stamper)
+	http.Handle("/bitrise/v2", stamper)
 	port := os.Getenv("PORT")
 	if len(port) == 0 {
 		port = "8080"

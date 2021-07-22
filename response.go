@@ -1,6 +1,6 @@
 package main
 
-// HookResponse represents success message reponse
+// HookResponse represents success message response
 type HookResponse struct {
 	Message  string `json:"message"`
 	Success  []int  `json:"success"`

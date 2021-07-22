@@ -1,5 +1,7 @@
 # Bitrise to Redmine webhook bindings
 
+[![Go Report Card](https://goreportcard.com/badge/github.com/alphatroya/ci-redmine-bindings)](https://goreportcard.com/report/github.com/alphatroya/ci-redmine-bindings)
+
 This hook automatically move all issues marked as "Ready to build" to "Done" section when
 internal build was completed. Number of the build will be printed in the specified custom
 field.

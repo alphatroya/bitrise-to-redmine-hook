@@ -10,6 +10,7 @@ const (
 	redisURLEnvKey = "REDIS_URL"
 )
 
+// EnvSettingsBuilder is a Setting struct factory that creates it from ENV variables
 type EnvSettingsBuilder struct {
 }
 

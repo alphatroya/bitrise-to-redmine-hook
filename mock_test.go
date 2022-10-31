@@ -5,8 +5,7 @@ import (
 	"io"
 )
 
-type badBody struct {
-}
+type badBody struct{}
 
 func (b badBody) Read(p []byte) (n int, err error) {
 	return 0, bytes.ErrTooLarge

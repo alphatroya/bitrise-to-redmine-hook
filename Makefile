@@ -1,5 +1,6 @@
 GO_BIN := $(GOPATH)/bin
-GOIMPORTS := $(GO_BIN)/goimports
+GOIMPORTS := go run golang.org/x/tools/cmd/goimports@latest
+GOFUMPT := go run mvdan.cc/gofumpt@v0.3.1
 GOLINT := $(GO_BIN)/golangci-lint
 
 all: install
@@ -16,8 +17,9 @@ coverage:
 lint: $(GOLINT)
 	golangci-lint run
 
-fmt: $(GOIMPORTS)
-	goimports -w -l .
+fmt:
+	$(GOIMPORTS) -w -l .
+	$(GOFUMPT) -w -l .
 
 $(GOIMPORTS):
 	go get -u golang.org/x/tools/cmd/goimports

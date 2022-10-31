@@ -11,7 +11,6 @@ import (
 )
 
 func sendMailgunNotification(response *HookResponse, redmineHost string, buildNumber int, issues []*Issue, version string) error {
-
 	if len(response.Success) == 0 && len(response.Failures) == 0 {
 		return errors.New("response object not contain neither success or failures")
 	}
@@ -52,7 +51,6 @@ func sendMailgunNotification(response *HookResponse, redmineHost string, buildNu
 	defer cancel()
 
 	_, _, err := mg.Send(ctx, message)
-
 	if err != nil {
 		return err
 	}

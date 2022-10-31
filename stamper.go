@@ -39,7 +39,7 @@ func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 func (s *Stamper) handleEvent(r *http.Request) (*HookResponse, int, error) {
 	rp := r.Header.Get("REDMINE_PROJECT")
 	if len(rp) == 0 {
-		return nil, http.StatusBadRequest, errors.New("REDMINE_PROJECT header is absent in the hook header")
+		return nil, http.StatusBadRequest, errors.New("handleEvent: REDMINE_PROJECT header is not set in the hook header")
 	}
 
 	payload, err := s.readAndParsePayload(r)
@@ -55,7 +55,7 @@ func (s *Stamper) handleEvent(r *http.Request) (*HookResponse, int, error) {
 	case "build/finished":
 		return s.handleFinishedEvent(payload, rp)
 	default:
-		return nil, http.StatusOK, fmt.Errorf("Unsupported bitrise event type %s", et)
+		return nil, http.StatusOK, fmt.Errorf("handleEvent: unsupported bitrise event type %s", et)
 	}
 }
 
@@ -66,16 +66,16 @@ func (s *Stamper) handleTriggeredEvent(payload *HookPayload, redmineProject stri
 
 	iContainer, err := issues(s.settings, redmineProject)
 	if err != nil {
-		return nil, http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
+		return nil, http.StatusBadRequest, fmt.Errorf("handleTriggeredEvent: wrong error from server: %s", err)
 	}
 
 	data, err := json.Marshal(iContainer)
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("Can't serialize data to string: %s", err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("handleTriggeredEvent: can't serialize data to string: %s", err)
 	}
 	err = s.rdb.Set(payload.BuildSlug, data, 4*time.Hour).Err()
 	if err != nil {
-		return nil, http.StatusInternalServerError, fmt.Errorf("Can't write new cache with build: %+v\nerror: %s", payload, err)
+		return nil, http.StatusInternalServerError, fmt.Errorf("handleTriggeredEvent: can't write new cache with build: %+v\nerror: %s", payload, err)
 	}
 
 	var logItems []int

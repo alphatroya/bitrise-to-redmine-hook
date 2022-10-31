@@ -11,8 +11,7 @@ const (
 )
 
 // EnvSettingsBuilder is a Setting struct factory that creates it from ENV variables
-type EnvSettingsBuilder struct {
-}
+type EnvSettingsBuilder struct{}
 
 func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	redis, err := getEnvVar(redisURLEnvKey)

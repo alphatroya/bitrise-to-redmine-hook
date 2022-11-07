@@ -11,13 +11,13 @@ import (
 
 // DoneMarker defines interface for issue processing task
 type DoneMarker interface {
-	markAsDone(issue *Issue, settings *settings.Settings, buildNumber int) error
+	markAsDone(issue *Issue, settings *settings.Config, buildNumber int) error
 }
 
 // RedmineDoneMarker move all issues to Done state with build number printing
 type RedmineDoneMarker struct{}
 
-func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *settings.Settings, buildNumber int) error {
+func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *settings.Config, buildNumber int) error {
 	type PayloadCustomField struct {
 		ID    int64  `json:"id"`
 		Value string `json:"value"`

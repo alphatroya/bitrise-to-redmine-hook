@@ -28,7 +28,7 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func createStamper(settings *settings.Settings) (*Stamper, error) {
+func createStamper(settings *settings.Config) (*Stamper, error) {
 	options, err := redis.ParseURL(settings.RedisURL)
 	if err != nil {
 		return nil, err

@@ -26,7 +26,7 @@ type Issue struct {
 	} `json:"project"`
 }
 
-func issues(settings *settings.Settings, project string) (*IssuesContainer, error) {
+func issues(settings *settings.Config, project string) (*IssuesContainer, error) {
 	request, err := http.NewRequest("GET", settings.Host+"/issues.json?status_id="+settings.RtbStatus+"&project_id="+project, nil)
 	if err != nil {
 		return nil, err

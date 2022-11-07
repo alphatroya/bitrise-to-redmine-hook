@@ -14,13 +14,13 @@ import (
 
 // Stamper is a handler for moving ready to build tasks to done state
 type Stamper struct {
-	settings *settings.Settings
+	settings *settings.Config
 	rdb      Storage
 	logger   *log.Logger
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settings *settings.Settings, storage Storage, logger *log.Logger) *Stamper {
+func NewStamper(settings *settings.Config, storage Storage, logger *log.Logger) *Stamper {
 	return &Stamper{settings, storage, logger}
 }
 

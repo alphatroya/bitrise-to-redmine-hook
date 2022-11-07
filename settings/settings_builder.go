@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"errors"
@@ -10,10 +10,7 @@ const (
 	redisURLEnvKey = "REDIS_URL"
 )
 
-// EnvSettingsBuilder is a Setting struct factory that creates it from ENV variables
-type EnvSettingsBuilder struct{}
-
-func (e *EnvSettingsBuilder) build() (*Settings, error) {
+func Current() (*Settings, error) {
 	redis, err := getEnvVar(redisURLEnvKey)
 	if err != nil {
 		return nil, err
@@ -49,12 +46,12 @@ func (e *EnvSettingsBuilder) build() (*Settings, error) {
 	}
 
 	return &Settings{
-		redisURL:     redis,
-		host:         host,
-		authToken:    authToken,
-		rtbStatus:    rtbStatus,
-		buildFieldID: buildFieldID,
-		doneStatus:   nextStatus,
+		RedisURL:     redis,
+		Host:         host,
+		AuthToken:    authToken,
+		RtbStatus:    rtbStatus,
+		BuildFieldID: buildFieldID,
+		DoneStatus:   nextStatus,
 	}, nil
 }
 

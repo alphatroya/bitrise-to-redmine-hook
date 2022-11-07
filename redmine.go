@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+
+	"github.com/alphatroya/ci-redmine-bindings/settings"
 )
 
 // IssuesContainer represents get issues response data
@@ -24,12 +26,12 @@ type Issue struct {
 	} `json:"project"`
 }
 
-func issues(settings *Settings, project string) (*IssuesContainer, error) {
-	request, err := http.NewRequest("GET", settings.host+"/issues.json?status_id="+settings.rtbStatus+"&project_id="+project, nil)
+func issues(settings *settings.Settings, project string) (*IssuesContainer, error) {
+	request, err := http.NewRequest("GET", settings.Host+"/issues.json?status_id="+settings.RtbStatus+"&project_id="+project, nil)
 	if err != nil {
 		return nil, err
 	}
-	request.Header.Set("X-Redmine-API-Key", settings.authToken)
+	request.Header.Set("X-Redmine-API-Key", settings.AuthToken)
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := http.DefaultClient.Do(request)

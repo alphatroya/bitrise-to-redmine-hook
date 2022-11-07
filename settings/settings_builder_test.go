@@ -1,4 +1,4 @@
-package main
+package settings
 
 import (
 	"os"
@@ -68,11 +68,10 @@ func TestSettingsBuilderFailures(t *testing.T) {
 
 	for _, tc := range cases {
 		os.Clearenv()
-		esb := &EnvSettingsBuilder{}
 		for key, value := range tc.envs {
 			_ = os.Setenv(key, value)
 		}
-		_, err := esb.build()
+		_, err := Current()
 		if err == nil {
 			t.Errorf("Build settings should fail if envs %v set", tc.envs)
 		}
@@ -109,20 +108,20 @@ func TestSettingsBuilderSuccess(t *testing.T) {
 
 	for _, tc := range cases {
 		os.Clearenv()
-		esb := &EnvSettingsBuilder{}
 		for key, value := range tc.envs {
 			_ = os.Setenv(key, value)
 		}
-		received, err := esb.build()
+		received, err := Current()
 		if err != nil {
 			t.Errorf("Build settings should succeed, received error: %s", err)
 		}
-		if tc.expected.redisURL != received.redisURL ||
-			tc.expected.host != received.host ||
-			tc.expected.authToken != received.authToken ||
-			tc.expected.rtbStatus != received.rtbStatus ||
-			tc.expected.buildFieldID != received.buildFieldID ||
-			tc.expected.doneStatus != received.doneStatus {
+		// TODO: replace by reflection
+		if tc.expected.RedisURL != received.RedisURL ||
+			tc.expected.Host != received.Host ||
+			tc.expected.AuthToken != received.AuthToken ||
+			tc.expected.RtbStatus != received.RtbStatus ||
+			tc.expected.BuildFieldID != received.BuildFieldID ||
+			tc.expected.DoneStatus != received.DoneStatus {
 			t.Errorf("Wrong settings received\ngot %+v\nexpected %+v", received, tc.expected)
 		}
 	}

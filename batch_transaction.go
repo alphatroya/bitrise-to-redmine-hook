@@ -1,6 +1,8 @@
 package main
 
-func batchTransaction(rm DoneMarker, issues *IssuesContainer, settings *Settings, buildNumber int) *HookResponse {
+import "github.com/alphatroya/ci-redmine-bindings/settings"
+
+func batchTransaction(rm DoneMarker, issues *IssuesContainer, settings *settings.Settings, buildNumber int) *HookResponse {
 	type Result struct {
 		id  int
 		err error

@@ -5,17 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+
+	"github.com/alphatroya/ci-redmine-bindings/settings"
 )
 
 // DoneMarker defines interface for issue processing task
 type DoneMarker interface {
-	markAsDone(issue *Issue, settings *Settings, buildNumber int) error
+	markAsDone(issue *Issue, settings *settings.Settings, buildNumber int) error
 }
 
 // RedmineDoneMarker move all issues to Done state with build number printing
 type RedmineDoneMarker struct{}
 
-func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNumber int) error {
+func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *settings.Settings, buildNumber int) error {
 	type PayloadCustomField struct {
 		ID    int64  `json:"id"`
 		Value string `json:"value"`
@@ -34,9 +36,9 @@ func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNum
 	requestBody := Payload{
 		Issue: &PayloadIssue{
 			AssignedToID: fmt.Sprintf("%d", issue.Author.ID),
-			StatusID:     settings.doneStatus,
+			StatusID:     settings.DoneStatus,
 			CustomFields: []*PayloadCustomField{
-				{settings.buildFieldID, fmt.Sprintf("%d", buildNumber)},
+				{settings.BuildFieldID, fmt.Sprintf("%d", buildNumber)},
 			},
 		},
 	}
@@ -48,11 +50,11 @@ func (r RedmineDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNum
 
 	buffer := bytes.NewBuffer(body)
 
-	request, err := http.NewRequest("PUT", settings.host+fmt.Sprintf("/issues/%d.json", issue.ID), buffer)
+	request, err := http.NewRequest("PUT", settings.Host+fmt.Sprintf("/issues/%d.json", issue.ID), buffer)
 	if err != nil {
 		return err
 	}
-	request.Header.Set("X-Redmine-API-Key", settings.authToken)
+	request.Header.Set("X-Redmine-API-Key", settings.AuthToken)
 	request.Header.Set("Content-Type", "application/json")
 
 	response, err := http.DefaultClient.Do(request)

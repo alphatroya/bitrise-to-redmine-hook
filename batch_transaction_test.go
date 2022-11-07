@@ -3,11 +3,13 @@ package main
 import (
 	"errors"
 	"testing"
+
+	"github.com/alphatroya/ci-redmine-bindings/settings"
 )
 
 func TestBatchSuccessTransaction(t *testing.T) {
 	m := MockDoneMarker{}
-	s := &Settings{}
+	s := &settings.Config{}
 	il := &IssuesContainer{
 		[]*Issue{
 			{},
@@ -25,7 +27,7 @@ func TestBatchSuccessTransaction(t *testing.T) {
 
 func TestBatchFailTransaction(t *testing.T) {
 	m := MockDoneMarker{true}
-	s := &Settings{}
+	s := &settings.Config{}
 	il := &IssuesContainer{
 		[]*Issue{
 			{},
@@ -45,7 +47,7 @@ type MockDoneMarker struct {
 	failable bool
 }
 
-func (m MockDoneMarker) markAsDone(issue *Issue, settings *Settings, buildNumber int) error {
+func (m MockDoneMarker) markAsDone(issue *Issue, settings *settings.Config, buildNumber int) error {
 	if m.failable {
 		return errors.New("Fail")
 	}

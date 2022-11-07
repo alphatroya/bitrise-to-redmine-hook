@@ -8,17 +8,19 @@ import (
 	"log"
 	"net/http"
 	"time"
+
+	"github.com/alphatroya/ci-redmine-bindings/settings"
 )
 
 // Stamper is a handler for moving ready to build tasks to done state
 type Stamper struct {
-	settings *Settings
+	settings *settings.Config
 	rdb      Storage
 	logger   *log.Logger
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settings *Settings, storage Storage, logger *log.Logger) *Stamper {
+func NewStamper(settings *settings.Config, storage Storage, logger *log.Logger) *Stamper {
 	return &Stamper{settings, storage, logger}
 }
 
@@ -105,7 +107,7 @@ func (s *Stamper) handleFinishedEvent(payload *HookPayload, redmineProject strin
 	}
 
 	response := batchTransaction(RedmineDoneMarker{}, issuesList, s.settings, payload.BuildNumber)
-	_ = sendMailgunNotification(response, s.settings.host, payload.BuildNumber, issuesList.Issues, version)
+	_ = sendMailgunNotification(response, s.settings.Host, payload.BuildNumber, issuesList.Issues, version)
 
 	return response, http.StatusOK, nil
 }

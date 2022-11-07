@@ -5,12 +5,12 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/alphatroya/ci-redmine-bindings/settings"
 	"github.com/go-redis/redis"
 )
 
 func main() {
-	sb := &EnvSettingsBuilder{}
-	settings, err := sb.build()
+	settings, err := settings.Current()
 	if err != nil {
 		log.Fatalf("Failed to create settings %s", err)
 	}
@@ -28,8 +28,8 @@ func main() {
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }
 
-func createStamper(settings *Settings) (*Stamper, error) {
-	options, err := redis.ParseURL(settings.redisURL)
+func createStamper(settings *settings.Config) (*Stamper, error) {
+	options, err := redis.ParseURL(settings.RedisURL)
 	if err != nil {
 		return nil, err
 	}

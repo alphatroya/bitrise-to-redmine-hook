@@ -3,7 +3,11 @@ module github.com/alphatroya/ci-redmine-bindings
 go 1.13
 
 require (
+	github.com/BurntSushi/toml v1.2.1 // indirect
 	github.com/go-redis/redis v6.15.9+incompatible
-	github.com/go-redis/redis/v8 v8.4.11 // indirect
+	github.com/google/go-cmp v0.5.9
+	github.com/ilyakaznacheev/cleanenv v1.4.0
 	github.com/mailgun/mailgun-go/v4 v4.0.0
+	github.com/onsi/ginkgo v1.14.2 // indirect
+	github.com/onsi/gomega v1.10.4 // indirect
 )

@@ -50,8 +50,7 @@ func sendMailgunNotification(response *HookResponse, redmineHost string, buildNu
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second*10)
 	defer cancel()
 
-	_, _, err := mg.Send(ctx, message)
-	if err != nil {
+	if _, _, err := mg.Send(ctx, message); err != nil {
 		return err
 	}
 

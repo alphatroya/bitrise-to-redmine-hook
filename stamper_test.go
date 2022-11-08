@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-var logger *log.Logger = log.New(ioutil.Discard, "", 0)
+var logger = log.New(ioutil.Discard, "", 0)
 
 func TestStamperRequestRedmineProjectKeyCheckFailure(t *testing.T) {
 	req, _ := http.NewRequest(http.MethodGet, "", nil)

@@ -1,0 +1,33 @@
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - dupl
+
+linters:
+  enable:
+    - asciicheck
+    - dupl
+    - forbidigo
+    - goconst
+    - gocritic
+    - gofmt
+    - goimports
+    - goprintffuncname
+    - gosec
+    - gosimple
+    - makezero
+    - misspell
+    - revive
+    - whitespace
+
+linters-settings:
+  godot:
+    exclude:
+      - "@.+"
+
+  revive:
+    check-shadowing: true
+    enable-all: true
+    disable:
+      - fieldalignment

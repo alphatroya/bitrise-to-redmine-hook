@@ -25,7 +25,9 @@ func main() {
 	if len(port) == 0 {
 		port = "8080"
 	}
-	log.Fatal(http.ListenAndServe(":"+port, nil))
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func createStamper(settings *settings.Config) (*Stamper, error) {

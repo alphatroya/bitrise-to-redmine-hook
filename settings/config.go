@@ -1,6 +1,6 @@
 package settings
 
-// Config combine all ENV setting needed for app working
+// Config struct combine app settings
 type Config struct {
 	RedisURL     string `env:"REDIS_URL"                   env-required:"true"`
 	Host         string `env:"REDMINE_HOST"                env-required:"true"`
@@ -8,4 +8,5 @@ type Config struct {
 	RtbStatus    string `env:"STAMP_READY_TO_BUILD_STATUS" env-required:"true"`
 	BuildFieldID int64  `env:"STAMP_BUILD_CUSTOM_FIELD"    env-required:"true"`
 	DoneStatus   string `env:"STAMP_DONE_STATUS"           env-required:"true"`
+	Port         string `env:"PORT"                                            env-default:"8080"`
 }

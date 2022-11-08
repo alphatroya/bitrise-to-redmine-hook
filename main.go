@@ -21,12 +21,8 @@ func main() {
 	}
 	http.Handle("/bitrise", stamper)
 	http.Handle("/bitrise/v2", stamper)
-	port := os.Getenv("PORT")
-	if len(port) == 0 {
-		port = "8080"
-	}
 	//nolint
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
+	if err := http.ListenAndServe(":"+settings.Port, nil); err != nil {
 		log.Fatal(err)
 	}
 }

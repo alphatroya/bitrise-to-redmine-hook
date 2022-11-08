@@ -5,57 +5,78 @@ import (
 	"errors"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"time"
 
 	"github.com/alphatroya/ci-redmine-bindings/settings"
+	"github.com/rs/zerolog"
 )
 
 // Stamper is a handler for moving ready to build tasks to done state
 type Stamper struct {
 	settings *settings.Config
 	rdb      Storage
-	logger   *log.Logger
 }
 
 // NewStamper creates handler class configured by settings and connected to redis client
-func NewStamper(settings *settings.Config, storage Storage, logger *log.Logger) *Stamper {
-	return &Stamper{settings, storage, logger}
+func NewStamper(settings *settings.Config, storage Storage) *Stamper {
+	return &Stamper{settings: settings, rdb: storage}
 }
 
 func (s *Stamper) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	resp, statusCode, err := s.handleEvent(r)
-	s.logger.Printf("Create new response with status code: %d", statusCode)
+	logger := *zerolog.Ctx(r.Context())
+	logger.Debug().
+		Msg("received incomming request")
+
+	projectID := r.Header.Get("REDMINE_PROJECT")
+	if projectID == "" {
+		err := errors.New("REDMINE_PROJECT header isn't set in request headers")
+		logger.Error().
+			Err(err).
+			Msg("wrong incoming headers")
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	logger = logger.With().Str("r_project", projectID).Logger()
+
+	resp, statusCode, err := s.handleEvent(r.WithContext(logger.WithContext(r.Context())), projectID)
+	logger.Debug().
+		Int("status code", statusCode).
+		Msg("create a new response")
 	if err != nil {
-		s.logger.Printf("Answer response with ERROR message: %s", err.Error())
+		logger.Error().
+			Err(err).
+			Msg("event processing failed")
 		http.Error(w, err.Error(), statusCode)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
-	s.logger.Printf("Answer response with SUCCESS message: %+v", resp)
+	logger.Info().
+		Interface("response", resp).
+		Int("status code", statusCode).
+		Msg("success response")
 	_ = json.NewEncoder(w).Encode(resp)
 }
 
-func (s *Stamper) handleEvent(r *http.Request) (*HookResponse, int, error) {
-	rp := r.Header.Get("REDMINE_PROJECT")
-	if len(rp) == 0 {
-		return nil, http.StatusBadRequest, errors.New("handleEvent: REDMINE_PROJECT header is not set in the hook header")
-	}
-
+func (s *Stamper) handleEvent(r *http.Request, projectID string) (*HookResponse, int, error) {
 	payload, err := s.readAndParsePayload(r)
 	if err != nil {
 		return nil, http.StatusBadRequest, err
 	}
 
 	et := r.Header.Get("Bitrise-Event-Type")
-	s.logger.Printf("Received bitrise event %s", et)
+
+	zerolog.Ctx(r.Context()).
+		Debug().
+		Str("bitrise event", et).
+		Msg("received bitrise event header")
 	switch et {
 	case "build/triggered":
-		return s.handleTriggeredEvent(payload, rp)
+		return s.handleTriggeredEvent(payload, projectID)
 	case "build/finished":
-		return s.handleFinishedEvent(payload, rp)
+		return s.handleFinishedEvent(payload, projectID)
 	default:
 		return nil, http.StatusOK, fmt.Errorf("handleEvent: unsupported bitrise event type %s", et)
 	}
@@ -98,7 +119,7 @@ func (s *Stamper) handleFinishedEvent(payload *HookPayload, redmineProject strin
 	if err != nil {
 		issuesList, err = issues(s.settings, redmineProject)
 		if err != nil {
-			return nil, http.StatusBadRequest, fmt.Errorf("Wrong error from server: %s", err)
+			return nil, http.StatusBadRequest, fmt.Errorf("handleFinishedEvent: wrong error from server: %w", err)
 		}
 	} else {
 		version += " cached"
@@ -115,15 +136,19 @@ func (s *Stamper) handleFinishedEvent(payload *HookPayload, redmineProject strin
 func (s *Stamper) readAndParsePayload(r *http.Request) (*HookPayload, error) {
 	data, err := ioutil.ReadAll(r.Body)
 	if err != nil {
-		return nil, errors.New("Received wrong request data payload")
+		return nil, fmt.Errorf("readAndParsePayload: received wrong request data payload: %w", err)
 	}
 
 	payload := new(HookPayload)
 	err = json.Unmarshal(data, payload)
 	if err != nil {
-		return nil, errors.New("Can't decode request payload json data")
+		return nil, fmt.Errorf("readAndParsePayload: can't decode request payload json data: %w", err)
 	}
-	s.logger.Printf("Received input payload json: %+v", payload)
+
+	zerolog.Ctx(r.Context()).
+		Debug().
+		Interface("in json", payload).
+		Msg("unmarshal event payload")
 
 	return payload, nil
 }

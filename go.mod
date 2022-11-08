@@ -10,4 +10,6 @@ require (
 	github.com/mailgun/mailgun-go/v4 v4.0.0
 	github.com/onsi/ginkgo v1.14.2 // indirect
 	github.com/onsi/gomega v1.10.4 // indirect
+	golang.org/x/net v0.1.0 // indirect
+	golang.org/x/sys v0.2.0 // indirect
 )

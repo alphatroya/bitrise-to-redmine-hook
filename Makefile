@@ -1,30 +1,32 @@
 GO_BIN := $(GOPATH)/bin
 GOIMPORTS := go run golang.org/x/tools/cmd/goimports@latest
 GOFUMPT := go run mvdan.cc/gofumpt@v0.3.1
-GOLINT := $(GO_BIN)/golangci-lint
+GOLANGCI := go run github.com/golangci/golangci-lint/cmd/golangci-lint@v1.50.1
 
-all: install
+.PHONY: all
+all: build
 
-install: fmt
+.PHONY: build
+build:
+	go build
+
+.PHONY: install
+install:
 	go install -v
 
+.PHONY: test
 test:
-	go test ./... -v
+	go test ./...
 
+.PHONY: coverage
 coverage:
 	go test ./... -v -race -coverprofile=coverage.txt -covermode=atomic
 
-lint: $(GOLINT)
-	golangci-lint run
+.PHONY: lint
+lint:
+	$(GOLANGCI) run
 
+.PHONY: fmt
 fmt:
 	$(GOIMPORTS) -w -l .
 	$(GOFUMPT) -w -l .
-
-$(GOIMPORTS):
-	go get -u golang.org/x/tools/cmd/goimports
-
-$(GOLINT):
-	go get -u github.com/golangci/golangci-lint/cmd/golangci-lint
-
-.PHONY: install test fmt lint

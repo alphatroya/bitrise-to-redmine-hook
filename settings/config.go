@@ -11,6 +11,7 @@ type Config struct {
 	BuildFieldID int64  `env:"STAMP_BUILD_CUSTOM_FIELD"    env-required:"true"`
 	DoneStatus   string `env:"STAMP_DONE_STATUS"           env-required:"true"`
 	Port         string `env:"PORT"                                            env-default:"8080"`
+	SentryDSN    string `env:"SENTRY_DSN"                  env-required:"true"`
 }
 
 func Current() (*Config, error) {

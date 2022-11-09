@@ -76,6 +76,18 @@ func Test_Current(t *testing.T) {
 			shouldFail: true,
 		},
 		{
+			name: "redis + redmine url and key + stamp + build number set + sentry",
+			envs: map[string]string{
+				"REDIS_URL":                   "redis",
+				"REDMINE_HOST":                "https://google.com",
+				"REDMINE_API_KEY":             "11881",
+				"STAMP_READY_TO_BUILD_STATUS": "1",
+				"STAMP_BUILD_CUSTOM_FIELD":    "1",
+				"SENTRY_DSN":                  "sentry",
+			},
+			shouldFail: true,
+		},
+		{
 			name: "all required settings set without port",
 			envs: map[string]string{
 				"REDIS_URL":                   "redis",
@@ -84,6 +96,7 @@ func Test_Current(t *testing.T) {
 				"STAMP_READY_TO_BUILD_STATUS": "1",
 				"STAMP_BUILD_CUSTOM_FIELD":    "1",
 				"STAMP_DONE_STATUS":           "1222",
+				"SENTRY_DSN":                  "sentry",
 			},
 			expected: &Config{
 				RedisURL:     "redis",
@@ -93,6 +106,7 @@ func Test_Current(t *testing.T) {
 				BuildFieldID: 1,
 				DoneStatus:   "1222",
 				Port:         "8080",
+				SentryDSN:    "sentry",
 			},
 		},
 		{
@@ -105,6 +119,7 @@ func Test_Current(t *testing.T) {
 				"STAMP_BUILD_CUSTOM_FIELD":    "1",
 				"STAMP_DONE_STATUS":           "1222",
 				"PORT":                        "8084",
+				"SENTRY_DSN":                  "sentry",
 			},
 			expected: &Config{
 				RedisURL:     "redis",
@@ -114,6 +129,7 @@ func Test_Current(t *testing.T) {
 				BuildFieldID: 1,
 				DoneStatus:   "1222",
 				Port:         "8084",
+				SentryDSN:    "sentry",
 			},
 		},
 	}

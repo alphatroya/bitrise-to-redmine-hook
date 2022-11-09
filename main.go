@@ -5,8 +5,10 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
+	"time"
 
 	"github.com/alphatroya/ci-redmine-bindings/settings"
+	"github.com/getsentry/sentry-go"
 	"github.com/go-redis/redis"
 	"github.com/rs/zerolog"
 )
@@ -37,6 +39,16 @@ func main() {
 			Err(err).
 			Msg("fail to collect required env configuration")
 	}
+
+	if err = sentry.Init(sentry.ClientOptions{
+		Dsn:              settings.SentryDSN,
+		TracesSampleRate: 1.0,
+	}); err != nil {
+		logger.Fatal().
+			Err(err).
+			Msg("sentry init failed")
+	}
+	defer sentry.Flush(2 * time.Second)
 
 	stamper, err := createStamper(settings)
 	if err != nil {

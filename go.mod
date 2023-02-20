@@ -10,6 +10,5 @@ require (
 	github.com/ilyakaznacheev/cleanenv v1.4.0
 	github.com/mailgun/mailgun-go/v4 v4.0.0
 	github.com/rs/zerolog v1.28.0
-	golang.org/x/net v0.1.0 // indirect
-	golang.org/x/sys v0.2.0 // indirect
+	golang.org/x/net v0.7.0 // indirect
 )
